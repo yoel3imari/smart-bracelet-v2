@@ -21,12 +21,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.yoel3imari.demo",
-      "permissions": [
-        "android.permission.BLUETOOTH",
-        "android.permission.BLUETOOTH_ADMIN",
-        "android.permission.BLUETOOTH_CONNECT"
-      ]
+      "package": "com.yoel3imari.demo"
     },
     "web": {
       "output": "static",
@@ -34,6 +29,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-dev-client",
       [
         "expo-splash-screen",
         {
@@ -49,10 +45,21 @@
       [
         "react-native-ble-manager",
         {
-          "isBleRequired": true,
-          "neverForLocation": true,
-          "companionDeviceEnabled": false,
-          "bluetoothAlwaysPermission": "Allow BLE DEMO APP to connect to bluetooth devices"
+          "isBleRequired": true, 
+          "needsAccessFineLocation": true,
+          "neverForLocation": false,
+          "bluetoothAlwaysPermission": "Allow $(PRODUCT_NAME) to use Bluetooth"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24
+          },
+          "ios": {
+            "deploymentTarget": "15.1"
+          }
         }
       ]
     ],

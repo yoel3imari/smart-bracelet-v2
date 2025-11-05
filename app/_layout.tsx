@@ -5,6 +5,7 @@ import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { HealthDataProvider } from "@/contexts/HealthDataContext";
 import ErrorBoundary from "@/components/error-boundary/ErrorBoundary";
+import { BleProvider } from "@/contexts/BleContext";
 
 
 SplashScreen.preventAutoHideAsync();
@@ -37,11 +38,13 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
+        <BleProvider>
         <HealthDataProvider>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <RootLayoutNav />
           </GestureHandlerRootView>
         </HealthDataProvider>
+        </BleProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );
