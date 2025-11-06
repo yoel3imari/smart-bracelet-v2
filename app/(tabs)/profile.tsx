@@ -1,19 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Bluetooth, Edit2, Save, X } from 'lucide-react-native';
+import { Bluetooth, Edit2, Save, X, LogOut } from 'lucide-react-native';
 import { useHealthData } from '@/contexts/HealthDataContext';
+import { useAuth } from '@/contexts/AuthContext';
 import colors from '@/constants/colors';
 
 type TabType = 'profile' | 'medical';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { userProfile, updateUserProfile } = useHealthData();
+  const { user, isAuthenticated, isLoading, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('profile');
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editedProfile, setEditedProfile] = useState(userProfile);
+
+  // Redirect to sign in if not authenticated
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.replace('/signin');
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null; // Will redirect in useEffect
+  }
 
   const handleSave = () => {
     updateUserProfile(editedProfile);
@@ -35,12 +57,17 @@ export default function ProfileScreen() {
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
         <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
           <Text style={styles.headerTitle}>Profile</Text>
-          <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => (isEditing ? handleSave() : setIsEditing(true))}
-          >
-            {isEditing ? <Save size={20} color={colors.primary} /> : <Edit2 size={20} color={colors.primary} />}
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => (isEditing ? handleSave() : setIsEditing(true))}
+            >
+              {isEditing ? <Save size={20} color={colors.primary} /> : <Edit2 size={20} color={colors.primary} />}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.logoutButton} onPress={signOut}>
+              <LogOut size={20} color={colors.danger} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.tabContainer}>
@@ -189,6 +216,16 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingBottom: 32,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: colors.textMuted,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -196,12 +233,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   headerTitle: {
     fontSize: 28,
     fontWeight: '700' as const,
     color: colors.text,
   },
   editButton: {
+    padding: 8,
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  logoutButton: {
     padding: 8,
     backgroundColor: colors.white,
     borderRadius: 20,

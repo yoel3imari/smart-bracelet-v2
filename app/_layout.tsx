@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { HealthDataProvider } from "@/contexts/HealthDataContext";
 import ErrorBoundary from "@/components/error-boundary/ErrorBoundary";
 import { BleProvider } from "@/contexts/BleContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 
 
 SplashScreen.preventAutoHideAsync();
@@ -23,9 +24,22 @@ const queryClient = new QueryClient({
 });
 
 function RootLayoutNav() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return null; // Show loading state or splash screen
+  }
+
   return (
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      {isAuthenticated ? (
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      ) : (
+        <>
+          <Stack.Screen name="signin" options={{ headerShown: false }} />
+          <Stack.Screen name="signup" options={{ headerShown: false }} />
+        </>
+      )}
     </Stack>
   );
 }
@@ -38,13 +52,15 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <BleProvider>
-        <HealthDataProvider>
-          <GestureHandlerRootView style={{ flex: 1 }}>
-            <RootLayoutNav />
-          </GestureHandlerRootView>
-        </HealthDataProvider>
-        </BleProvider>
+        <AuthProvider>
+          <BleProvider>
+            <HealthDataProvider>
+              <GestureHandlerRootView style={{ flex: 1 }}>
+                <RootLayoutNav />
+              </GestureHandlerRootView>
+            </HealthDataProvider>
+          </BleProvider>
+        </AuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );

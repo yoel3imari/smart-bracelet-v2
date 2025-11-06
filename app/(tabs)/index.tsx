@@ -10,9 +10,10 @@ import {
   Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import {
   Heart,
+  HeartCrack,
   Activity,
   Thermometer,
   Droplet,
@@ -23,8 +24,10 @@ import {
   Bluetooth,
 } from "lucide-react-native";
 import { useHealthData } from "@/contexts/HealthDataContext";
-// import DeviceSelectionModal from "@/components/bluetooth/DeviceSelectionModal";
-// import { BluetoothDevice } from "@/hooks/useBluetooth";
+import { useBle } from "@/contexts/BleContext";
+import { useAuth } from "@/contexts/AuthContext";
+import DeviceSelectionModal from "@/components/bluetooth/DeviceSelectionModal";
+import { BluetoothDevice } from "@/hooks/useBluetooth";
 import colors from "@/constants/colors";
 
 const { width } = Dimensions.get("window");
@@ -32,15 +35,25 @@ const CARD_WIDTH = (width - 60) / 2;
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const {
     hasAlerts,
     currentData,
     refreshData,
-    // isConnected,
-    // connectToDevice,
-    // disconnectFromDevice,
-    // connectedDevice,
+    isConnected,
+    connectToDevice,
+    disconnectFromDevice,
+    connectedDevice,
   } = useHealthData();
+  
+  const {
+    devices,
+    isScanning,
+    startScan,
+    stopScan,
+    connectionError,
+  } = useBle();
+  const { isAuthenticated } = useAuth();
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const heartBeatAnim = useRef(new Animated.Value(0)).current;
   const [showDeviceModal, setShowDeviceModal] = useState(false);
@@ -116,40 +129,40 @@ export default function HomeScreen() {
             <View
               style={[
                 styles.statusDot,
-                // isConnected ? styles.connected : styles.disconnected,
+                isConnected ? styles.connected : styles.disconnected,
               ]}
             />
             <TouchableOpacity
               style={styles.statusContainer}
               onPress={() => {
-                // if (isConnected) {
-                //   Alert.alert(
-                //     "Disconnect Device",
-                //     "Do you want to disconnect from the current device?",
-                //     [
-                //       { text: "Cancel", style: "cancel" },
-                //       {
-                //         text: "Disconnect",
-                //         style: "destructive",
-                //         onPress: disconnectFromDevice,
-                //       },
-                //     ]
-                //   );
-                // } else {
-                //   setShowDeviceModal(true);
-                // }
+                if (isConnected) {
+                  Alert.alert(
+                    "Disconnect Device",
+                    "Do you want to disconnect from the current device?",
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      {
+                        text: "Disconnect",
+                        style: "destructive",
+                        onPress: disconnectFromDevice,
+                      },
+                    ]
+                  );
+                } else {
+                  setShowDeviceModal(true);
+                }
               }}
             >
               <Text style={styles.statusText}>
-                {/* {isConnected ? "Connected" : "Tap to Connect"} */}
+                {isConnected ? "Connected" : "Tap to Connect"}
               </Text>
-              {/* {!isConnected && (
+              {!isConnected && (
                 <Bluetooth
                   size={16}
                   color={colors.primary}
                   style={styles.bluetoothIcon}
                 />
-              )} */}
+              )}
             </TouchableOpacity>
           </View>
           <View style={styles.headerRight}>
@@ -158,7 +171,18 @@ export default function HomeScreen() {
                 <Bell size={20} color={colors.white} />
               </View>
             )}
-            <TouchableOpacity style={styles.iconButton}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => {
+                if (isAuthenticated) {
+                  // Navigate to Profile screen if authenticated
+                  router.push('/(tabs)/profile');
+                } else {
+                  // Navigate to Sign Up screen if not authenticated
+                  router.push('/signup');
+                }
+              }}
+            >
               <User size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
@@ -178,25 +202,35 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.heartSection}>
-          <Animated.View
-            style={[
-              styles.heartContainer,
-              {
-                transform: [
-                  { scale: Animated.multiply(pulseAnim, heartScale) },
-                ],
-              },
-            ]}
-          >
-            <View style={styles.heartGlow} />
-            <Heart size={120} color={colors.heart} fill={colors.heart} />
-            <View style={styles.bpmBadge}>
-              <Text style={styles.bpmText}>
-                {Math.round(currentData.heartRate)}
-              </Text>
-              <Text style={styles.bpmLabel}>BPM</Text>
+          {isConnected ? (
+            <Animated.View
+              style={[
+                styles.heartContainer,
+                {
+                  transform: [
+                    { scale: Animated.multiply(pulseAnim, heartScale) },
+                  ],
+                },
+              ]}
+            >
+              <View style={styles.heartGlow} />
+              <Heart size={120} color={colors.heart} fill={colors.heart} />
+              <View style={styles.bpmBadge}>
+                <Text style={styles.bpmText}>
+                  {Math.round(currentData.heartRate)}
+                </Text>
+                <Text style={styles.bpmLabel}>BPM</Text>
+              </View>
+            </Animated.View>
+          ) : (
+            <View style={styles.heartContainer}>
+              <HeartCrack size={120} color={colors.textMuted} />
+              <View style={styles.bpmBadge}>
+                <Text style={[styles.bpmText, styles.disconnectedBpmText]}>--</Text>
+                <Text style={styles.bpmLabel}>BPM</Text>
+              </View>
             </View>
-          </Animated.View>
+          )}
         </View>
 
         <View style={styles.statsGrid}>
@@ -254,14 +288,14 @@ export default function HomeScreen() {
           <Text style={styles.lastUpdatedText}>
             Last updated: {currentData.lastUpdated.toLocaleTimeString()}
           </Text>
-          {/* {connectedDevice && (
+          {connectedDevice && (
             <Text style={styles.deviceInfo}>
               Connected to: {connectedDevice.name}
             </Text>
-          )} */}
+          )}
         </View>
 
-        {/* {!isConnected && (
+        {!isConnected && (
           <View style={styles.connectPrompt}>
             <Bluetooth size={48} color={colors.textMuted} />
             <Text style={styles.connectPromptTitle}>No Device Connected</Text>
@@ -276,25 +310,30 @@ export default function HomeScreen() {
               <Text style={styles.connectButtonText}>Connect Device</Text>
             </TouchableOpacity>
           </View>
-        )} */}
+        )}
       </ScrollView>
       
       
-      {/* <DeviceSelectionModal
+      <DeviceSelectionModal
         visible={showDeviceModal}
         onClose={() => setShowDeviceModal(false)}
         onDeviceSelected={async (device: BluetoothDevice) => {
           try {
             await connectToDevice(device.id);
             setShowDeviceModal(false);
-          } catch (error) {
+          } catch {
             Alert.alert(
               "Connection Failed",
               "Failed to connect to the selected device"
             );
           }
         }}
-      /> */}
+        devices={devices}
+        isScanning={isScanning}
+        startScan={startScan}
+        stopScan={stopScan}
+        connectionError={connectionError}
+      />
     </>
   );
 }
@@ -550,5 +589,8 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 16,
     fontWeight: "600",
+  },
+  disconnectedBpmText: {
+    color: colors.textMuted,
   },
 });

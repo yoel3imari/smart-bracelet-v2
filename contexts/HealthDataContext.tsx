@@ -1,6 +1,6 @@
 import createContextHook from '@nkzw/create-context-hook';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-// import useBluetooth, { HealthData as BluetoothHealthData } from '@/hooks/useBluetooth';
+import { useBle } from './BleContext';
 
 export interface HealthData {
   heartRate: number;
@@ -52,17 +52,17 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
     medications: ['Lisinopril 10mg', 'Albuterol inhaler'],
   });
 
-  // Use the simple Bluetooth hook
-  // const {
-  //   connectedDevice,
-  //   isConnected,
-  //   healthData: bluetoothHealthData,
-  //   connectToDevice,
-  //   disconnectFromDevice,
-  // } = useBluetooth();
+  // Use the Bluetooth context
+  const {
+    connectedDevice,
+    isConnected,
+    healthData: bluetoothHealthData,
+    connectToDevice,
+    disconnectFromDevice,
+  } = useBle();
 
   // Update health data when Bluetooth data changes
-  // useEffect(() => {
+  useEffect(() => {
   //   if (bluetoothHealthData) {
   //     const newData: HealthData = {
   //       heartRate: bluetoothHealthData.heartRate || 0,
@@ -93,7 +93,7 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
   //     // Check for alerts based on health data
   //     checkForAlerts(newData);
   //   }
-  // }, [bluetoothHealthData]);
+  }, [bluetoothHealthData]);
 
   const checkForAlerts = useCallback((data: HealthData) => {
     const alerts = [];
@@ -135,19 +135,19 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
     setUserProfile((prev) => ({ ...prev, ...updates }));
   }, []);
 
-  // const toggleConnection = useCallback(async () => {
-  //   if (isConnected && connectedDevice) {
-  //     // Disconnect from current device
-  //     try {
-  //       await disconnectFromDevice();
-  //     } catch (error) {
-  //       console.error('Error disconnecting device:', error);
-  //     }
-  //   } else {
-  //     // Connection is handled through the device selection modal
-  //     console.log('Use device selection modal to connect');
-  //   }
-  // }, [isConnected, connectedDevice, disconnectFromDevice]);
+  const toggleConnection = useCallback(async () => {
+    if (isConnected && connectedDevice) {
+      // Disconnect from current device
+      try {
+        await disconnectFromDevice();
+      } catch (error) {
+        console.error('Error disconnecting device:', error);
+      }
+    } else {
+      // Connection is handled through the device selection modal
+      console.log('Use device selection modal to connect');
+    }
+  }, [isConnected, connectedDevice, disconnectFromDevice]);
 
   return useMemo(
     () => ({
@@ -155,11 +155,11 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
       currentData,
       historicalData,
       userProfile,
-      // isConnected,
-      // connectedDevice,
-      // toggleConnection,
-      // connectToDevice,
-      // disconnectFromDevice,
+      isConnected,
+      connectedDevice,
+      toggleConnection,
+      connectToDevice,
+      disconnectFromDevice,
       refreshData,
       updateUserProfile,
     }),
@@ -168,11 +168,11 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
       currentData,
       historicalData,
       userProfile,
-      // isConnected,
-      // connectedDevice,
-      // toggleConnection,
-      // connectToDevice,
-      // disconnectFromDevice,
+      isConnected,
+      connectedDevice,
+      toggleConnection,
+      connectToDevice,
+      disconnectFromDevice,
       refreshData,
       updateUserProfile,
     ]

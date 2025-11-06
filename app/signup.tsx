@@ -1,0 +1,239 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+} from 'react-native';
+import { Stack, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ArrowLeft, User, Mail, Lock } from 'lucide-react-native';
+import { useAuth } from '@/contexts/AuthContext';
+import colors from '@/constants/colors';
+
+export default function SignUpScreen() {
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { signUp, isLoading } = useAuth();
+
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  });
+
+  const handleSignUp = async () => {
+    if (!formData.name || !formData.email || !formData.password) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+
+    const result = await signUp(formData.email, formData.name, formData.password);
+    
+    if (result.success) {
+      // Navigate to the main app after successful sign up
+      router.replace('/(tabs)');
+    }
+  };
+
+  const navigateToSignIn = () => {
+    router.push('/signin');
+  };
+
+  return (
+    <>
+      <Stack.Screen
+        options={{
+          headerShown: false,
+        }}
+      />
+      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+        <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <ArrowLeft size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Create Account</Text>
+          <View style={styles.headerPlaceholder} />
+        </View>
+
+        <View style={styles.form}>
+          <View style={styles.inputContainer}>
+            <View style={styles.inputIcon}>
+              <User size={20} color={colors.textMuted} />
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="Full Name"
+              placeholderTextColor={colors.textMuted}
+              value={formData.name}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
+              autoCapitalize="words"
+              autoComplete="name"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <View style={styles.inputIcon}>
+              <Mail size={20} color={colors.textMuted} />
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="Email Address"
+              placeholderTextColor={colors.textMuted}
+              value={formData.email}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, email: text }))}
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <View style={styles.inputIcon}>
+              <Lock size={20} color={colors.textMuted} />
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              placeholderTextColor={colors.textMuted}
+              value={formData.password}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, password: text }))}
+              secureTextEntry
+              autoCapitalize="none"
+              autoComplete="new-password"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <View style={styles.inputIcon}>
+              <Lock size={20} color={colors.textMuted} />
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="Confirm Password"
+              placeholderTextColor={colors.textMuted}
+              value={formData.confirmPassword}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, confirmPassword: text }))}
+              secureTextEntry
+              autoCapitalize="none"
+              autoComplete="new-password"
+            />
+          </View>
+
+          <TouchableOpacity
+            style={[styles.signUpButton, isLoading && styles.signUpButtonDisabled]}
+            onPress={handleSignUp}
+            disabled={isLoading}
+          >
+            <Text style={styles.signUpButtonText}>
+              {isLoading ? 'Creating Account...' : 'Create Account'}
+            </Text>
+          </TouchableOpacity>
+
+          <View style={styles.signInContainer}>
+            <Text style={styles.signInText}>Already have an account? </Text>
+            <TouchableOpacity onPress={navigateToSignIn}>
+              <Text style={styles.signInLink}>Sign In</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  contentContainer: {
+    flexGrow: 1,
+    paddingBottom: 32,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700' as const,
+    color: colors.text,
+  },
+  headerPlaceholder: {
+    width: 40,
+  },
+  form: {
+    paddingHorizontal: 20,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  inputIcon: {
+    padding: 16,
+    borderRightWidth: 1,
+    borderRightColor: colors.border,
+  },
+  input: {
+    flex: 1,
+    padding: 16,
+    fontSize: 16,
+    color: colors.text,
+  },
+  signUpButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 24,
+    marginBottom: 32,
+  },
+  signUpButtonDisabled: {
+    opacity: 0.6,
+  },
+  signUpButtonText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: '600' as const,
+  },
+  signInContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  signInText: {
+    fontSize: 14,
+    color: colors.textMuted,
+  },
+  signInLink: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '600' as const,
+  },
+});
