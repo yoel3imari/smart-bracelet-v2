@@ -1,10 +1,25 @@
-import { Tabs } from "expo-router";
+import { Tabs, useRouter } from "expo-router";
 import { Home, BarChart3, User, Settings } from "lucide-react-native";
-import React from "react";
+import React, { useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 import colors from "@/constants/colors";
 
 export default function TabLayout() {
+  const router = useRouter();
+  const { isAuthenticated, isLoading } = useAuth();
+
+  // Redirect to sign in if not authenticated
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.replace('/signin');
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  if (isLoading || !isAuthenticated) {
+    return null; // Will redirect in useEffect
+  }
+
   return (
     <Tabs
       screenOptions={{

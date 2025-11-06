@@ -44,7 +44,7 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
   const [userProfile, setUserProfile] = useState<UserProfile>({
     name: 'Sarah Johnson',
     age: 32,
-    gender: 'Female',
+    gender: 'Male',
     photoUrl: 'https://i.pravatar.cc/150?img=47',
     bloodType: 'A+',
     conditions: ['Hypertension', 'Asthma'],

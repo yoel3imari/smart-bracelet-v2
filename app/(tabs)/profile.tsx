@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, TextInput } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bluetooth, Edit2, Save, X, LogOut } from 'lucide-react-native';
 import { useHealthData } from '@/contexts/HealthDataContext';
@@ -11,50 +10,45 @@ type TabType = 'profile' | 'medical';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
   const { userProfile, updateUserProfile } = useHealthData();
-  const { user, isAuthenticated, isLoading, signOut } = useAuth();
+  const { user, signOut, updateUser } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('profile');
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editedProfile, setEditedProfile] = useState(userProfile);
-
-  // Redirect to sign in if not authenticated
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.replace('/signin');
-    }
-  }, [isAuthenticated, isLoading, router]);
-
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return null; // Will redirect in useEffect
-  }
+  const [editedUser, setEditedUser] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    password: '',
+  });
 
   const handleSave = () => {
+    // Update user profile data
     updateUserProfile(editedProfile);
+    
+    // Update user data (name and email)
+    if (editedUser.name && editedUser.email) {
+      updateUser({
+        name: editedUser.name,
+        email: editedUser.email,
+      });
+    }
+    
     setIsEditing(false);
+    Alert.alert('Success', 'Profile updated successfully');
   };
 
   const handleCancel = () => {
     setEditedProfile(userProfile);
+    setEditedUser({
+      name: user?.name || '',
+      email: user?.email || '',
+      password: '',
+    });
     setIsEditing(false);
   };
 
   return (
-    <>
-      <Stack.Screen
-        options={{
-          headerShown: false,
-        }}
-      />
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
         <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
           <Text style={styles.headerTitle}>Profile</Text>
           <View style={styles.headerActions}>
@@ -88,28 +82,99 @@ export default function ProfileScreen() {
         {activeTab === 'profile' ? (
           <View style={styles.content}>
             <View style={styles.profileCard}>
-              <Image source={{ uri: userProfile.photoUrl }} style={styles.avatar} />
-              <Text style={styles.name}>{userProfile.name}</Text>
-              <Text style={styles.info}>
-                {userProfile.age} years • {userProfile.gender}
-              </Text>
+              <Text style={styles.name}>{user?.name || userProfile.name}</Text>
+              <Text style={styles.email}>{user?.email}</Text>
             </View>
 
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Connected Devices</Text>
-              <View style={styles.deviceCard}>
-                <View style={styles.deviceIcon}>
-                  <Bluetooth size={24} color={colors.primary} />
+            {isEditing ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Personal Information</Text>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Full Name</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={editedUser.name}
+                    onChangeText={(text) => setEditedUser({ ...editedUser, name: text })}
+                    placeholder="Enter your full name"
+                  />
                 </View>
-                <View style={styles.deviceInfo}>
-                  <Text style={styles.deviceName}>MedBand Pro X</Text>
-                  <Text style={styles.deviceStatus}>Connected • Battery 87%</Text>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Email</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={editedUser.email}
+                    onChangeText={(text) => setEditedUser({ ...editedUser, email: text })}
+                    placeholder="Enter your email"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+                </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Password</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={editedUser.password}
+                    onChangeText={(text) => setEditedUser({ ...editedUser, password: text })}
+                    placeholder="Enter new password"
+                    secureTextEntry
+                  />
                 </View>
               </View>
-            </View>
+            ) : (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Connected Devices</Text>
+                <View style={styles.deviceCard}>
+                  <View style={styles.deviceIcon}>
+                    <Bluetooth size={24} color={colors.primary} />
+                  </View>
+                  <View style={styles.deviceInfo}>
+                    <Text style={styles.deviceName}>MedBand Pro X</Text>
+                    <Text style={styles.deviceStatus}>Connected • Battery 87%</Text>
+                  </View>
+                </View>
+              </View>
+            )}
           </View>
         ) : (
           <View style={styles.content}>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Basic Information</Text>
+              {isEditing ? (
+                <View style={styles.inputRow}>
+                  <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+                    <Text style={styles.inputLabel}>Age</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={editedProfile.age?.toString()}
+                      onChangeText={(text) => setEditedProfile({ ...editedProfile, age: parseInt(text) || 0 })}
+                      placeholder="Age"
+                      keyboardType="numeric"
+                    />
+                  </View>
+                  <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
+                    <Text style={styles.inputLabel}>Gender</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={editedProfile.gender}
+                      onChangeText={(text) => setEditedProfile({ ...editedProfile, gender: text })}
+                      placeholder="Gender"
+                    />
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.infoCard}>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Age:</Text>
+                    <Text style={styles.infoValue}>{userProfile.age} years</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Gender:</Text>
+                    <Text style={styles.infoValue}>{userProfile.gender}</Text>
+                  </View>
+                </View>
+              )}
+            </View>
+
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Blood Type</Text>
               {isEditing ? (
@@ -203,8 +268,7 @@ export default function ProfileScreen() {
             )}
           </View>
         )}
-      </ScrollView>
-    </>
+    </ScrollView>
   );
 }
 
@@ -308,21 +372,23 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 16,
-  },
   name: {
     fontSize: 24,
     fontWeight: '700' as const,
     color: colors.text,
-    marginBottom: 4,
+    marginBottom: 8,
+    textAlign: 'center',
   },
   info: {
+    fontSize: 16,
+    color: colors.text,
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  email: {
     fontSize: 14,
     color: colors.textMuted,
+    textAlign: 'center',
   },
   section: {
     marginBottom: 24,
@@ -407,6 +473,15 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 4,
   },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: colors.text,
+    marginBottom: 8,
+  },
   input: {
     backgroundColor: colors.white,
     borderRadius: 12,
@@ -415,6 +490,10 @@ const styles = StyleSheet.create({
     color: colors.text,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    marginBottom: 16,
   },
   textArea: {
     minHeight: 80,
@@ -431,6 +510,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.danger,
     marginTop: 8,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  infoLabel: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: colors.text,
   },
   cancelButtonText: {
     fontSize: 16,

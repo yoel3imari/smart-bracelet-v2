@@ -82,13 +82,7 @@ export default function SettingsScreen() {
   );
 
   return (
-    <>
-      <Stack.Screen
-        options={{
-          headerShown: false,
-        }}
-      />
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
         <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
           <Text style={styles.headerTitle}>Settings</Text>
         </View>
@@ -163,8 +157,7 @@ export default function SettingsScreen() {
           <Text style={styles.footerText}>MedBand Companion App</Text>
           <Text style={styles.footerSubtext}>Made with care for your health</Text>
         </View>
-      </ScrollView>
-    </>
+    </ScrollView>
   );
 }
 

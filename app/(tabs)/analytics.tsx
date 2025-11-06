@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -7,12 +7,10 @@ import {
   TouchableOpacity,
   Dimensions,
 } from "react-native";
-import { Stack, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Path, Circle, Line as SvgLine, Text as SvgText } from 'react-native-svg';
+import Svg, { Path, Circle, Line, Text as SvgText } from 'react-native-svg';
 import { Download, TrendingUp } from "lucide-react-native";
 import { useHealthData } from "@/contexts/HealthDataContext";
-import { useAuth } from "@/contexts/AuthContext";
 import colors from "@/constants/colors";
 
 const { width } = Dimensions.get("window");
@@ -23,9 +21,7 @@ type TimeFilter = "daily" | "weekly" | "monthly";
 
 export default function AnalyticsScreen() {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
   const { historicalData } = useHealthData();
-  const { isAuthenticated, isLoading } = useAuth();
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("daily");
 
   const filteredData = useMemo(() => {
@@ -38,25 +34,6 @@ export default function AnalyticsScreen() {
     const cutoff = new Date(now.getTime() - hoursBack * 60 * 60 * 1000);
     return historicalData.filter((d) => d.timestamp >= cutoff);
   }, [historicalData, timeFilter]);
-
-  // Redirect to sign in if not authenticated
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.replace('/signin');
-    }
-  }, [isAuthenticated, isLoading, router]);
-
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return null; // Will redirect in useEffect
-  }
 
   const renderChart = (
     data: number[],
@@ -96,7 +73,7 @@ export default function AnalyticsScreen() {
           </View>
         </View>
         <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
-          <SvgLine
+          <Line
             x1={padding}
             y1={padding + chartHeight}
             x2={padding + chartWidth}
@@ -104,7 +81,7 @@ export default function AnalyticsScreen() {
             stroke={colors.border}
             strokeWidth="1"
           />
-          <SvgLine
+          <Line
             x1={padding}
             y1={padding}
             x2={padding}
@@ -129,16 +106,10 @@ export default function AnalyticsScreen() {
   };
 
   return (
-    <>
-      <Stack.Screen
-        options={{
-          headerShown: false,
-        }}
-      />
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}
-      >
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
+    >
         <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
           <Text style={styles.headerTitle}>Analytics</Text>
           <TouchableOpacity style={styles.exportButton}>
@@ -224,8 +195,7 @@ export default function AnalyticsScreen() {
           36,
           38
         )}
-      </ScrollView>
-    </>
+    </ScrollView>
   );
 }
 

@@ -115,11 +115,6 @@ export default function HomeScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          headerShown: false,
-        }}
-      />
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
@@ -312,7 +307,6 @@ export default function HomeScreen() {
           </View>
         )}
       </ScrollView>
-      
       
       <DeviceSelectionModal
         visible={showDeviceModal}
