@@ -36,28 +36,17 @@ const BleContext = createContext<BleContextType | null>(null);
 
 // 3. Create the Provider component
 export const BleProvider = ({ children }: { children: ReactNode }) => {
-  const [hasPermissions, setHasPermissions] = useState(false);
-  
   // Use the Bluetooth hook for device management
   const bluetooth = useBluetooth();
 
-  useEffect(() => {
-    // This effect runs once on app load
-    const checkPermissions = async () => {
-      console.log('Checking BLE permissions...');
-      const granted = await requestBlePermissions();
-      setHasPermissions(granted);
-      
-      if (granted) {
-        console.log('BLE permissions are granted');
-        // BleManager is already initialized in useBluetooth hook
-      } else {
-        console.log('BLE permissions were denied');
-      }
-    };
+  // Use the permissions from the useBluetooth hook to avoid conflicts
+  const hasPermissions = bluetooth.hasPermissions;
 
-    checkPermissions();
-  }, []);
+  useEffect(() => {
+    console.log('BleContext initialized with permissions:', hasPermissions);
+    console.log('Available devices:', bluetooth.devices.length);
+    console.log('Connection status:', bluetooth.isConnected);
+  }, [hasPermissions, bluetooth.devices.length, bluetooth.isConnected]);
 
   // Combine context values
   const contextValue: BleContextType = {

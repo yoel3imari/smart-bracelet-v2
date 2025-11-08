@@ -45,8 +45,11 @@ export default function SignUpScreen() {
     const result = await signUp(formData.email, formData.name, formData.password);
     
     if (result.success) {
-      // Navigate to the main app after successful sign up
-      router.replace('/(tabs)');
+      // Navigate to email verification screen after successful sign up
+      router.push({
+        pathname: '/verify-email',
+        params: { email: formData.email }
+      } as any);
     }
   };
 

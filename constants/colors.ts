@@ -2,7 +2,7 @@ export default {
   primary: '#4A90E2',
   primaryLight: '#6BA8F0',
   primaryDark: '#3A7BC8',
-  secondary: '#E8F4FD',
+  secondary: '#dff1ffff',
   background: '#F8FAFB',
   white: '#FFFFFF',
   text: '#2C3E50',

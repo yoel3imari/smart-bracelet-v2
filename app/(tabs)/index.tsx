@@ -22,6 +22,7 @@ import {
   User,
   Bike,
   Bluetooth,
+  MoonStarIcon,
 } from "lucide-react-native";
 import { useHealthData } from "@/contexts/HealthDataContext";
 import { useBle } from "@/contexts/BleContext";
@@ -193,7 +194,9 @@ export default function HomeScreen() {
               <RefreshCw size={20} color={colors.primary} />
             </TouchableOpacity>
           </View>
-          <Text style={styles.anomalyText}>All vitals within normal range</Text>
+          <Text style={isConnected ? styles.anomalyText : styles.anomalyTextUnavailable}>
+            {isConnected ? "All vitals within normal range" : "Data unavailable: connect device"}
+          </Text>
         </View>
 
         <View style={styles.heartSection}>
@@ -233,15 +236,14 @@ export default function HomeScreen() {
             <View
               style={[styles.statIcon, { backgroundColor: colors.secondary }]}
             >
-              <Activity size={24} color={colors.primary} />
+              <MoonStarIcon size={24} color={colors.primary} />
             </View>
-            <Text style={styles.statLabel}>Blood Pressure</Text>
+            <Text style={styles.statLabel}>Sleep</Text>
             <View style={styles.numUnitWrapper}>
               <Text style={styles.statValue}>
-                {Math.round(currentData.bloodPressureSystolic)}/
-                {Math.round(currentData.bloodPressureDiastolic)}
+                {currentData.sleepHours.toFixed(1)}
               </Text>
-              <Text style={styles.statUnit}>mmHg</Text>
+              <Text style={styles.statUnit}>Hours</Text>
             </View>
           </View>
 
@@ -249,7 +251,7 @@ export default function HomeScreen() {
             <View style={[styles.statIcon, { backgroundColor: "#FFF4E6" }]}>
               <Thermometer size={24} color={colors.warning} />
             </View>
-            <Text style={styles.statLabel}>Temperature</Text>
+            <Text style={styles.statLabel}>Body Temperature</Text>
             <Text style={styles.statValue}>
               {currentData.temperature.toFixed(1)}
             </Text>
@@ -268,8 +270,8 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: "#FFF4E6" }]}>
-              <Bike size={24} color={colors.warning} />
+            <View style={[styles.statIcon, { backgroundColor: "#ffe6e6ff" }]}>
+              <Bike size={24} color={colors.danger} />
             </View>
             <Text style={styles.statLabel}>Acceleration</Text>
             <Text style={styles.statValue}>
@@ -424,6 +426,11 @@ const styles = StyleSheet.create({
   anomalyText: {
     fontSize: 14,
     color: colors.success,
+    fontWeight: "500" as const,
+  },
+  anomalyTextUnavailable: {
+    fontSize: 14,
+    color: colors.secondary,
     fontWeight: "500" as const,
   },
   heartSection: {

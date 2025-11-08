@@ -7,7 +7,7 @@ import colors from "@/constants/colors";
 
 export default function TabLayout() {
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   // Redirect to sign in if not authenticated
   useEffect(() => {
@@ -16,7 +16,17 @@ export default function TabLayout() {
     }
   }, [isAuthenticated, isLoading, router]);
 
-  if (isLoading || !isAuthenticated) {
+  // Redirect to email verification if authenticated but email not verified
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && user && !user.emailVerified) {
+      router.push({
+        pathname: '/verify-email',
+        params: { email: user.email }
+      } as any);
+    }
+  }, [isAuthenticated, isLoading, user, router]);
+
+  if (isLoading || !isAuthenticated || (user && !user.emailVerified)) {
     return null; // Will redirect in useEffect
   }
 

@@ -1,17 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import colors from '@/constants/colors';
+import { useBle } from '@/contexts/BleContext';
+import { BluetoothDevice } from '@/hooks/useBluetooth';
+import { Bluetooth, RefreshCw, Signal, X } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  FlatList,
-  TouchableOpacity,
   ActivityIndicator,
   Alert,
+  FlatList,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { Bluetooth, Signal, X, RefreshCw } from 'lucide-react-native';
-import { BluetoothDevice } from '@/hooks/useBluetooth';
-import colors from '@/constants/colors';
 
 interface DeviceSelectionModalProps {
   visible: boolean;
@@ -35,6 +36,7 @@ const DeviceSelectionModal: React.FC<DeviceSelectionModalProps> = ({
   connectionError,
 }) => {
   const [, setRefreshing] = useState(false);
+  const { hasPermissions } = useBle();
 
   useEffect(() => {
     const startScanning = async () => {
@@ -142,9 +144,22 @@ const DeviceSelectionModal: React.FC<DeviceSelectionModalProps> = ({
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Connect Device</Text>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <X size={24} color={colors.text} />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <View style={styles.permissionStatus}>
+              <View
+                style={[
+                  styles.permissionDot,
+                  hasPermissions ? styles.permissionGranted : styles.permissionDenied
+                ]}
+              />
+              <Text style={styles.permissionText}>
+                {hasPermissions ? 'Permissions OK' : 'Check Permissions'}
+              </Text>
+            </View>
+            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+              <X size={24} color={colors.text} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Scan Controls */}
@@ -194,7 +209,12 @@ const DeviceSelectionModal: React.FC<DeviceSelectionModalProps> = ({
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            Looking for health monitoring devices like heart rate monitors, blood pressure cuffs, and pulse oximeters.
+            Scanning for ALL available Bluetooth devices.
+            {"\n\n"}This includes ESP32, health monitors, and any other BLE devices in range.
+            {"\n\n"}If devices aren't appearing:
+            {"\n"}• Ensure Bluetooth is enabled
+            {"\n"}• Check device permissions
+            {"\n"}• Try refreshing the scan
           </Text>
         </View>
       </View>
@@ -224,6 +244,36 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     padding: 8,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  permissionStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: colors.background,
+  },
+  permissionDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  permissionGranted: {
+    backgroundColor: colors.success,
+  },
+  permissionDenied: {
+    backgroundColor: colors.danger,
+  },
+  permissionText: {
+    fontSize: 12,
+    color: colors.text,
+    fontWeight: '500',
   },
   controls: {
     flexDirection: 'row',
