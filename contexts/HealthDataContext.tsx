@@ -1,6 +1,6 @@
 import createContextHook from '@nkzw/create-context-hook';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useBle } from './BleContext';
+// import { useBle } from './BleContext';
 import { metricService, issueService, MetricType } from '@/services';
 
 export interface HealthData {
@@ -52,49 +52,49 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
   });
 
   // Use the Bluetooth context
-  const {
-    connectedDevice,
-    isConnected,
-    healthData: bluetoothHealthData,
-    connectToDevice,
-    disconnectFromDevice,
-  } = useBle();
+  // const {
+  //   connectedDevice,
+  //   isConnected,
+  //   healthData: bluetoothHealthData,
+  //   connectToDevice,
+  //   disconnectFromDevice,
+  // } = useBle();
 
   // Update health data when Bluetooth data changes
-  useEffect(() => {
-    if (bluetoothHealthData) {
-      const newData: HealthData = {
-        heartRate: bluetoothHealthData.heartRate || 0,
-        sleepHours: bluetoothHealthData.sleepHours || 0,
-        temperature: bluetoothHealthData.temperature || 0,
-        oxygenLevel: bluetoothHealthData.oxygenLevel || 0,
-        lastUpdated: bluetoothHealthData.timestamp,
-      };
+  // useEffect(() => {
+  //   if (bluetoothHealthData) {
+  //     const newData: HealthData = {
+  //       heartRate: bluetoothHealthData.heartRate || 0,
+  //       sleepHours: bluetoothHealthData.sleepHours || 0,
+  //       temperature: bluetoothHealthData.temperature || 0,
+  //       oxygenLevel: bluetoothHealthData.oxygenLevel || 0,
+  //       lastUpdated: bluetoothHealthData.timestamp,
+  //     };
 
-      setCurrentData(newData);
+  //     setCurrentData(newData);
 
-      // Add to historical data
-      setHistoricalData(prev => {
-        const newHistoricalData = [...prev];
-        newHistoricalData.push({
-          timestamp: bluetoothHealthData.timestamp,
-          heartRate: bluetoothHealthData.heartRate || 0,
-          oxygenLevel: bluetoothHealthData.oxygenLevel || 0,
-          temperature: bluetoothHealthData.temperature || 0,
-        });
+  //     // Add to historical data
+  //     setHistoricalData(prev => {
+  //       const newHistoricalData = [...prev];
+  //       newHistoricalData.push({
+  //         timestamp: bluetoothHealthData.timestamp,
+  //         heartRate: bluetoothHealthData.heartRate || 0,
+  //         oxygenLevel: bluetoothHealthData.oxygenLevel || 0,
+  //         temperature: bluetoothHealthData.temperature || 0,
+  //       });
         
-        // Keep only last 24 hours of data
-        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        return newHistoricalData.filter(item => item.timestamp > twentyFourHoursAgo);
-      });
+  //       // Keep only last 24 hours of data
+  //       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  //       return newHistoricalData.filter(item => item.timestamp > twentyFourHoursAgo);
+  //     });
 
-      // Send metrics to backend if device is registered
-      sendMetricsToBackend(newData, bluetoothHealthData.timestamp);
+  //     // Send metrics to backend if device is registered
+  //     sendMetricsToBackend(newData, bluetoothHealthData.timestamp);
 
-      // Check for alerts based on health data
-      checkForAlerts(newData);
-    }
-  }, [bluetoothHealthData]);
+  //     // Check for alerts based on health data
+  //     checkForAlerts(newData);
+  //   }
+  // }, [bluetoothHealthData]);
 
   // Send health metrics to backend
   const sendMetricsToBackend = useCallback(async (data: HealthData, timestamp: Date) => {
@@ -182,19 +182,19 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
     setUserProfile((prev) => ({ ...prev, ...updates }));
   }, []);
 
-  const toggleConnection = useCallback(async () => {
-    if (isConnected && connectedDevice) {
-      // Disconnect from current device
-      try {
-        await disconnectFromDevice();
-      } catch (error) {
-        console.error('Error disconnecting device:', error);
-      }
-    } else {
-      // Connection is handled through the device selection modal
-      console.log('Use device selection modal to connect');
-    }
-  }, [isConnected, connectedDevice, disconnectFromDevice]);
+  // const toggleConnection = useCallback(async () => {
+  //   if (isConnected && connectedDevice) {
+  //     // Disconnect from current device
+  //     try {
+  //       await disconnectFromDevice();
+  //     } catch (error) {
+  //       console.error('Error disconnecting device:', error);
+  //     }
+  //   } else {
+  //     // Connection is handled through the device selection modal
+  //     console.log('Use device selection modal to connect');
+  //   }
+  // }, [isConnected, connectedDevice, disconnectFromDevice]);
 
   return useMemo(
     () => ({
@@ -202,11 +202,11 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
       currentData,
       historicalData,
       userProfile,
-      isConnected,
-      connectedDevice,
       toggleConnection,
-      connectToDevice,
-      disconnectFromDevice,
+      // isConnected,
+      // connectedDevice,
+      // connectToDevice,
+      // disconnectFromDevice,
       refreshData,
       updateUserProfile,
     }),
@@ -215,11 +215,11 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
       currentData,
       historicalData,
       userProfile,
-      isConnected,
-      connectedDevice,
       toggleConnection,
-      connectToDevice,
-      disconnectFromDevice,
+      // isConnected,
+      // connectedDevice,
+      // connectToDevice,
+      // disconnectFromDevice,
       refreshData,
       updateUserProfile,
     ]

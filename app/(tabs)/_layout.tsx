@@ -4,11 +4,23 @@ import React, { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
 import colors from "@/constants/colors";
+import useBLE from "@/hooks/use-ble";
 
 export default function TabLayout() {
   const router = useRouter();
   const { isAuthenticated, isLoading, user } = useAuth();
-
+  const {
+    allDevices,
+    connectedDevice,
+    connectToDevice,
+    sensorData,
+    isScanning,
+    requestPermissions,
+    scanForPeripherals,
+    stopScan,
+    disconnectFromDevice,
+  } = useBLE();
+  
   // Redirect to sign in if not authenticated
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {

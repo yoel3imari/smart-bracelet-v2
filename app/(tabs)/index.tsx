@@ -25,10 +25,10 @@ import {
   MoonStarIcon,
 } from "lucide-react-native";
 import { useHealthData } from "@/contexts/HealthDataContext";
-import { useBle } from "@/contexts/BleContext";
 import { useAuth } from "@/contexts/AuthContext";
-import DeviceSelectionModal from "@/components/bluetooth/DeviceSelectionModal";
-import { BluetoothDevice } from "@/hooks/useBluetooth";
+// import { useBle } from "@/contexts/BleContext";
+// import DeviceSelectionModal from "@/components/bluetooth/DeviceSelectionModal";
+// import { BluetoothDevice } from "@/hooks/useBluetooth";
 import colors from "@/constants/colors";
 
 const { width } = Dimensions.get("window");
@@ -47,13 +47,13 @@ export default function HomeScreen() {
     connectedDevice,
   } = useHealthData();
   
-  const {
-    devices,
-    isScanning,
-    startScan,
-    stopScan,
-    connectionError,
-  } = useBle();
+  // const {
+  //   devices,
+  //   isScanning,
+  //   startScan,
+  //   stopScan,
+  //   connectionError,
+  // } = useBle();
   const { isAuthenticated } = useAuth();
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const heartBeatAnim = useRef(new Animated.Value(0)).current;
@@ -310,7 +310,7 @@ export default function HomeScreen() {
         )}
       </ScrollView>
       
-      <DeviceSelectionModal
+      {/* <DeviceSelectionModal
         visible={showDeviceModal}
         onClose={() => setShowDeviceModal(false)}
         onDeviceSelected={async (device: BluetoothDevice) => {
@@ -329,7 +329,7 @@ export default function HomeScreen() {
         startScan={startScan}
         stopScan={stopScan}
         connectionError={connectionError}
-      />
+      /> */}
     </>
   );
 }
