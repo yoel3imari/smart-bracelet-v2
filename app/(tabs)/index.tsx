@@ -26,9 +26,8 @@ import {
 } from "lucide-react-native";
 import { useHealthData } from "@/contexts/HealthDataContext";
 import { useAuth } from "@/contexts/AuthContext";
-// import { useBle } from "@/contexts/BleContext";
-// import DeviceSelectionModal from "@/components/bluetooth/DeviceSelectionModal";
-// import { BluetoothDevice } from "@/hooks/useBluetooth";
+import { useBle } from "@/contexts/BleContext";
+import { DeviceModal } from "@/components/bluetooth/ble-modal";
 import colors from "@/constants/colors";
 
 const { width } = Dimensions.get("window");
@@ -47,13 +46,13 @@ export default function HomeScreen() {
     connectedDevice,
   } = useHealthData();
   
-  // const {
-  //   devices,
-  //   isScanning,
-  //   startScan,
-  //   stopScan,
-  //   connectionError,
-  // } = useBle();
+  const {
+    allDevices: devices,
+    isScanning,
+    scanForPeripherals: startScan,
+    stopScan,
+    connectionError,
+  } = useBle();
   const { isAuthenticated } = useAuth();
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const heartBeatAnim = useRef(new Animated.Value(0)).current;
@@ -173,9 +172,11 @@ export default function HomeScreen() {
                 if (isAuthenticated) {
                   // Navigate to Profile screen if authenticated
                   router.push('/(tabs)/profile');
+                  // <Redirect href="/(tabs)/profile" />
                 } else {
                   // Navigate to Sign Up screen if not authenticated
                   router.push('/signup');
+                  // <Redirect href="/signin" />
                 }
               }}
             >
@@ -310,26 +311,14 @@ export default function HomeScreen() {
         )}
       </ScrollView>
       
-      {/* <DeviceSelectionModal
+      <DeviceModal
         visible={showDeviceModal}
-        onClose={() => setShowDeviceModal(false)}
-        onDeviceSelected={async (device: BluetoothDevice) => {
-          try {
-            await connectToDevice(device.id);
-            setShowDeviceModal(false);
-          } catch {
-            Alert.alert(
-              "Connection Failed",
-              "Failed to connect to the selected device"
-            );
-          }
-        }}
+        closeModal={() => setShowDeviceModal(false)}
+        connectToPeripheral={connectToDevice}
         devices={devices}
         isScanning={isScanning}
-        startScan={startScan}
         stopScan={stopScan}
-        connectionError={connectionError}
-      /> */}
+      />
     </>
   );
 }
