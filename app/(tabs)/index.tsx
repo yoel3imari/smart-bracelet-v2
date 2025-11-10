@@ -52,11 +52,85 @@ export default function HomeScreen() {
     scanForPeripherals: startScan,
     stopScan,
     connectionError,
+    requestPermissions,
+    bluetoothState,
+    checkBluetoothState,
   } = useBle();
   const { isAuthenticated } = useAuth();
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const heartBeatAnim = useRef(new Animated.Value(0)).current;
   const [showDeviceModal, setShowDeviceModal] = useState(false);
+  const [hasScanError, setHasScanError] = useState(false);
+  const [permissionChecked, setPermissionChecked] = useState(false);
+
+  // Start scanning when modal opens
+  useEffect(() => {
+    if (showDeviceModal && !isScanning && !hasScanError) {
+      const initiateScan = async () => {
+        try {
+          // Check Bluetooth state first
+          const isBluetoothEnabled = await checkBluetoothState();
+          if (!isBluetoothEnabled) {
+            console.log("Bluetooth is disabled, cannot scan");
+            setHasScanError(true);
+            return;
+          }
+
+          // Request permissions first
+          const hasPermissions = await requestPermissions();
+          if (hasPermissions) {
+            console.log("Starting BLE scan...");
+            setHasScanError(false);
+            const scanStarted = await startScan();
+            if (!scanStarted) {
+              setHasScanError(true);
+            }
+          } else {
+            console.log("BLE permissions denied");
+            setHasScanError(true);
+          }
+        } catch (error) {
+          console.log("Error starting BLE scan:", error);
+          setHasScanError(true);
+        }
+      };
+      initiateScan();
+    }
+  }, [showDeviceModal, isScanning, requestPermissions, startScan, hasScanError, checkBluetoothState]);
+
+  // Check permissions and Bluetooth state on app start
+  useEffect(() => {
+    const checkPermissionsOnStart = async () => {
+      if (permissionChecked) return;
+      
+      try {
+        console.log("Checking Bluetooth and Location permissions...");
+        
+        // Check Bluetooth state first
+        const isBluetoothEnabled = await checkBluetoothState();
+        if (!isBluetoothEnabled) {
+          console.log("Bluetooth is disabled, requesting permissions...");
+          await requestPermissions();
+        } else {
+          console.log("Bluetooth is enabled");
+        }
+        
+        setPermissionChecked(true);
+      } catch (error) {
+        console.log("Error checking permissions on start:", error);
+        setPermissionChecked(true);
+      }
+    };
+
+    checkPermissionsOnStart();
+  }, [checkBluetoothState, requestPermissions, permissionChecked]);
+
+  // Reset scan error when modal closes
+  useEffect(() => {
+    if (!showDeviceModal) {
+      setHasScanError(false);
+    }
+  }, [showDeviceModal]);
 
   useEffect(() => {
     const pulse = Animated.loop(
@@ -159,6 +233,13 @@ export default function HomeScreen() {
                 />
               )}
             </TouchableOpacity>
+            {!isConnected && bluetoothState === 'PoweredOff' && (
+              <View style={styles.permissionWarning}>
+                <Text style={styles.permissionWarningText}>
+                  Bluetooth Required
+                </Text>
+              </View>
+            )}
           </View>
           <View style={styles.headerRight}>
             {hasAlerts && (
@@ -318,6 +399,7 @@ export default function HomeScreen() {
         devices={devices}
         isScanning={isScanning}
         stopScan={stopScan}
+        bluetoothState={bluetoothState}
       />
     </>
   );
@@ -582,5 +664,19 @@ const styles = StyleSheet.create({
   },
   disconnectedBpmText: {
     color: colors.textMuted,
+  },
+  permissionWarning: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: colors.warning,
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  permissionWarningText: {
+    fontSize: 10,
+    color: colors.white,
+    fontWeight: '600',
   },
 });

@@ -24,6 +24,7 @@ type DeviceModalProps = {
   closeModal: () => void;
   isScanning: boolean;
   stopScan: () => void;
+  bluetoothState?: string;
 };
 
 const DeviceModalListItem: FC<DeviceModalListItemProps> = (props) => {
@@ -47,7 +48,7 @@ const DeviceModalListItem: FC<DeviceModalListItemProps> = (props) => {
 };
 
 export const DeviceModal: FC<DeviceModalProps> = (props) => {
-  const { devices, visible, connectToPeripheral, closeModal, isScanning, stopScan } = props;
+  const { devices, visible, connectToPeripheral, closeModal, isScanning, stopScan, bluetoothState } = props;
 
   const renderDeviceModalListItem = useCallback(
     (item: ListRenderItemInfo<Device>) => {
@@ -69,17 +70,35 @@ export const DeviceModal: FC<DeviceModalProps> = (props) => {
     closeModal();
   };
 
-  return (
-    <Modal
-      style={modalStyle.modalContainer}
-      animationType="slide"
-      transparent={false}
-      visible={visible}
-    >
-      <SafeAreaView style={modalStyle.modalContainer}>
-        <Text style={modalStyle.modalTitleText}>
-          {isScanning ? "Scanning for devices..." : "Tap on a device to connect"}
-        </Text>
+  // Start scanning when modal becomes visible
+  React.useEffect(() => {
+    if (visible && !isScanning) {
+      // We need to trigger scanning from the parent component
+      // This will be handled by the parent component via the useEffect
+    }
+  }, [visible, isScanning]);
+
+  const getModalTitle = () => {
+    if (bluetoothState === 'PoweredOff') {
+      return "Bluetooth is Disabled";
+    } else if (isScanning) {
+      return "Scanning for devices...";
+    } else {
+      return "Tap on a device to connect";
+    }
+  };
+
+  const getModalContent = () => {
+    if (bluetoothState === 'PoweredOff') {
+      return (
+        <View style={modalStyle.errorContainer}>
+          <Text style={modalStyle.errorText}>
+            Please enable Bluetooth on your device to scan for and connect to health monitoring devices.
+          </Text>
+        </View>
+      );
+    } else {
+      return (
         <FlatList
           style={modalStyle.flatList}
           contentContainerStyle={modalStyle.modalFlatlistContainer}
@@ -87,14 +106,40 @@ export const DeviceModal: FC<DeviceModalProps> = (props) => {
           renderItem={renderDeviceModalListItem}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={true}
+          ListEmptyComponent={
+            <View style={modalStyle.emptyContainer}>
+              <Text style={modalStyle.emptyText}>
+                {isScanning ? "Searching for devices..." : "No devices found"}
+              </Text>
+            </View>
+          }
         />
+      );
+    }
+  };
+
+  return (
+    <Modal
+      style={modalStyle.modalContainer}
+      animationType="slide"
+      transparent={false}
+      visible={visible}
+      onShow={() => {
+        console.log("BLE Modal shown - Bluetooth state:", bluetoothState);
+      }}
+    >
+      <SafeAreaView style={modalStyle.modalContainer}>
+        <Text style={modalStyle.modalTitleText}>
+          {getModalTitle()}
+        </Text>
+        {getModalContent()}
         <View style={modalStyle.buttonContainer}>
           <TouchableOpacity
             onPress={handleStopScanAndClose}
             style={[modalStyle.ctaButton, modalStyle.stopButton]}
           >
             <Text style={modalStyle.ctaButtonText}>
-              {isScanning ? "Stop Scan & Close" : "Close"}
+              {bluetoothState === 'PoweredOff' ? 'Close' : (isScanning ? "Stop Scan & Close" : "Close")}
             </Text>
           </TouchableOpacity>
         </View>
@@ -136,7 +181,7 @@ const modalStyle = StyleSheet.create({
     paddingBottom: 20,
   },
   ctaButton: {
-    backgroundColor: "#FF6060",
+    backgroundColor: "#60b5ffff",
     justifyContent: "center",
     alignItems: "center",
     height: 50,
@@ -151,6 +196,30 @@ const modalStyle = StyleSheet.create({
   },
   stopButton: {
     backgroundColor: "#666666",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 40,
+  },
+  errorText: {
+    fontSize: 16,
+    textAlign: "center",
+    color: "#666666",
+    lineHeight: 24,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 40,
+  },
+  emptyText: {
+    fontSize: 16,
+    textAlign: "center",
+    color: "#666666",
+    lineHeight: 24,
   },
 });
 

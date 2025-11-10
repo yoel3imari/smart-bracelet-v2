@@ -16,14 +16,16 @@ export interface BleState {
   isScanning: boolean;
   isConnected: boolean;
   connectionError: string | null;
+  bluetoothState: string;
 }
 
 export interface BleActions {
   connectToDevice: (device: Device) => Promise<void>;
   disconnectFromDevice: () => void;
   requestPermissions: () => Promise<boolean>;
-  scanForPeripherals: () => void;
+  scanForPeripherals: () => Promise<boolean>;
   stopScan: () => void;
+  checkBluetoothState: () => Promise<boolean>;
 }
 
 export const [BleProvider, useBle] = createContextHook(() => {
@@ -32,11 +34,13 @@ export const [BleProvider, useBle] = createContextHook(() => {
     connectedDevice,
     sensorData,
     isScanning,
+    bluetoothState,
     connectToDevice,
     requestPermissions,
     scanForPeripherals,
     stopScan,
     disconnectFromDevice,
+    checkBluetoothState,
   } = useBLE();
 
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -71,7 +75,8 @@ export const [BleProvider, useBle] = createContextHook(() => {
     isScanning,
     isConnected: !!connectedDevice,
     connectionError,
-  }), [allDevices, connectedDevice, sensorData, isScanning, connectionError]);
+    bluetoothState,
+  }), [allDevices, connectedDevice, sensorData, isScanning, connectionError, bluetoothState]);
 
   const actions: BleActions = useMemo(() => ({
     connectToDevice: handleConnectToDevice,
@@ -79,7 +84,8 @@ export const [BleProvider, useBle] = createContextHook(() => {
     requestPermissions,
     scanForPeripherals,
     stopScan,
-  }), [handleConnectToDevice, handleDisconnectFromDevice, requestPermissions, scanForPeripherals, stopScan]);
+    checkBluetoothState,
+  }), [handleConnectToDevice, handleDisconnectFromDevice, requestPermissions, scanForPeripherals, stopScan, checkBluetoothState]);
 
   return useMemo(() => ({
     ...state,

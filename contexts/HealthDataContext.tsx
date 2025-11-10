@@ -89,10 +89,10 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
       });
 
       // Send metrics to backend if device is registered
-      sendMetricsToBackend(newData, new Date());
+      // sendMetricsToBackend(newData, new Date());
 
       // Check for alerts based on health data
-      checkForAlerts(newData);
+      // checkForAlerts(newData);
     }
   }, [bleSensorData, isConnected]);
 

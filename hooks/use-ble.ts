@@ -9,6 +9,7 @@ import {
     BleManager,
     Characteristic,
     Device,
+    State,
 } from "react-native-ble-plx";
 
 const DATA_SERVICE_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";
@@ -29,6 +30,7 @@ function useBLE() {
     });
     const [isScanning, setIsScanning] = useState(false);
     const [mtuSize, setMtuSize] = useState<number>(512); // Default BLE MTU
+    const [bluetoothState, setBluetoothState] = useState<State>(State.Unknown);
 
     const requestAndroid31Permissions = async () => {
         const bluetoothScanPermission = await PermissionsAndroid.request(
@@ -122,10 +124,29 @@ function useBLE() {
     const isDuplicteDevice = (devices: Device[], nextDevice: Device) =>
         devices.findIndex((device) => nextDevice.id === device.id) > -1;
 
-    const scanForPeripherals = () => {
+    const checkBluetoothState = async (): Promise<boolean> => {
+        try {
+            const state = await bleManager.state();
+            setBluetoothState(state);
+            return state === State.PoweredOn;
+        } catch (error) {
+            console.log("Error checking Bluetooth state:", error);
+            setBluetoothState(State.Unknown);
+            return false;
+        }
+    };
+
+    const scanForPeripherals = async (): Promise<boolean> => {
         if (isScanning) {
             console.log("Scan already in progress");
-            return;
+            return false;
+        }
+
+        // Check Bluetooth state before scanning
+        const isBluetoothEnabled = await checkBluetoothState();
+        if (!isBluetoothEnabled) {
+            console.log("Bluetooth is not enabled, cannot scan");
+            return false;
         }
 
         setIsScanning(true);
@@ -134,7 +155,7 @@ function useBLE() {
         // Start scan with timeout
         bleManager.startDeviceScan(null, null, (error, device) => {
             if (error) {
-                console.log(error);
+                console.log("BLE Scan Error:", error);
                 setIsScanning(false);
                 return;
             }
@@ -153,10 +174,13 @@ function useBLE() {
             }
         });
 
-        // Stop scan after 10 seconds
+        // Stop scan after 30 seconds
         setTimeout(() => {
+            console.log("BLE scan timeout reached (30 seconds) - stopping scan");
             stopScan();
-        }, 10000);
+        }, 30000);
+
+        return true;
     };
 
     const stopScan = () => {
@@ -273,11 +297,13 @@ function useBLE() {
         sensorData,
         mtuSize,
         isScanning,
+        bluetoothState,
         requestPermissions,
         scanForPeripherals,
         stopScan,
         disconnectFromDevice,
         startStreamingData,
+        checkBluetoothState,
     };
 }
 
