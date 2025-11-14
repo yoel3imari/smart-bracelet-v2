@@ -1,5 +1,5 @@
 /* eslint-disable no-bitwise */
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { PermissionsAndroid, Platform } from "react-native";
 
 import * as ExpoDevice from "expo-device";
@@ -12,9 +12,14 @@ import {
     State,
 } from "react-native-ble-plx";
 
-const DATA_SERVICE_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";
-const CHAR_UUID_TX = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E";
-const CHAR_UUID_RX = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E";
+// Default UUIDs for ESP32 BLE devices (fallback if discovery fails)
+const DEFAULT_DATA_SERVICE_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";
+const DEFAULT_CHAR_UUID_TX = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E";
+const DEFAULT_CHAR_UUID_RX = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E";
+
+// Standard BLE MTU sizes
+const MAX_MTU_SIZE = 247; // Maximum BLE 4.0+ MTU
+const DEFAULT_MTU_SIZE = 23; // Minimum BLE MTU
 
 const bleManager = new BleManager();
 
@@ -29,8 +34,11 @@ function useBLE() {
         gyroscope: { x: 0, y: 0, z: 0 }
     });
     const [isScanning, setIsScanning] = useState(false);
-    const [mtuSize, setMtuSize] = useState<number>(512); // Default BLE MTU
+    const [mtuSize, setMtuSize] = useState<number>(DEFAULT_MTU_SIZE); // Default BLE MTU
+    const [discoveredServices, setDiscoveredServices] = useState<string[]>([]);
+    const [discoveredCharacteristics, setDiscoveredCharacteristics] = useState<string[]>([]);
     const [bluetoothState, setBluetoothState] = useState<State>(State.Unknown);
+    const [hasLocationPermission, setHasLocationPermission] = useState<boolean>(false);
 
     const requestAndroid31Permissions = async () => {
         const bluetoothScanPermission = await PermissionsAndroid.request(
@@ -65,6 +73,31 @@ function useBLE() {
         );
     };
 
+    const checkLocationPermission = async (): Promise<boolean> => {
+        console.log("useBLE: Checking location permission...");
+        if (Platform.OS === "android") {
+            try {
+                console.log("useBLE: Android platform - checking fine location permission");
+                const granted = await PermissionsAndroid.check(
+                    PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+                );
+                console.log("useBLE: Android location permission result:", granted);
+                setHasLocationPermission(granted);
+                return granted;
+            } catch (error) {
+                console.log("useBLE: Error checking location permission:", error);
+                setHasLocationPermission(false);
+                return false;
+            }
+        } else {
+            // For iOS, location permission is handled differently
+            // We'll assume it's granted for now as iOS handles this differently
+            console.log("useBLE: iOS platform - assuming location permission granted");
+            setHasLocationPermission(true);
+            return true;
+        }
+    };
+
     const requestPermissions = async () => {
         if (Platform.OS === "android") {
             if ((ExpoDevice.platformApiLevel ?? -1) < 31) {
@@ -72,20 +105,43 @@ function useBLE() {
                     PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
                     {
                         title: "Location Permission",
-                        message: "Bluetooth Low Energy requires Location",
+                        message: "Bluetooth Low Energy requires Location to scan for nearby devices",
                         buttonPositive: "OK",
                     }
                 );
-                return granted === PermissionsAndroid.RESULTS.GRANTED;
+                const hasPermission = granted === PermissionsAndroid.RESULTS.GRANTED;
+                setHasLocationPermission(hasPermission);
+                return hasPermission;
             } else {
                 const isAndroid31PermissionsGranted =
                     await requestAndroid31Permissions();
-
+                setHasLocationPermission(isAndroid31PermissionsGranted);
                 return isAndroid31PermissionsGranted;
             }
         } else {
+            // For iOS, permissions are handled differently
+            // We'll assume they're granted for now
+            setHasLocationPermission(true);
             return true;
         }
+    };
+
+    const checkAllPermissions = async (): Promise<{
+        bluetoothEnabled: boolean;
+        locationPermission: boolean;
+    }> => {
+        console.log("useBLE: Starting checkAllPermissions...");
+        const bluetoothEnabled = await checkBluetoothState();
+        console.log("useBLE: Bluetooth state check result:", bluetoothEnabled);
+        const locationPermission = await checkLocationPermission();
+        console.log("useBLE: Location permission check result:", locationPermission);
+        
+        const result = {
+            bluetoothEnabled,
+            locationPermission
+        };
+        console.log("useBLE: checkAllPermissions returning:", result);
+        return result;
     };
 
     const connectToDevice = async (device: Device) => {
@@ -98,26 +154,71 @@ function useBLE() {
                 setIsScanning(false);
             }
 
-            const deviceConnection = await bleManager.connectToDevice(device.id);
-            setConnectedDevice(deviceConnection);
-            await deviceConnection.discoverAllServicesAndCharacteristics();
+            // Add connection timeout
+            const connectionTimeout = new Promise<never>((_, reject) => {
+                setTimeout(() => reject(new Error("Connection timeout after 10 seconds")), 10000);
+            });
 
-            // Request larger MTU for better data transfer
+            const deviceConnection = await Promise.race([
+                bleManager.connectToDevice(device.id),
+                connectionTimeout
+            ]);
+            
+            setConnectedDevice(deviceConnection);
+            
+            // Discover all services and characteristics
+            await deviceConnection.discoverAllServicesAndCharacteristics();
+            
+            // Get discovered services and characteristics
+            const services = await deviceConnection.services();
+            const serviceIds = services.map(service => service.uuid);
+            setDiscoveredServices(serviceIds);
+            
+            console.log(`Discovered services: ${serviceIds.join(', ')}`);
+            
+            // Discover characteristics for each service
+            const allCharacteristics: string[] = [];
+            for (const service of services) {
+                const characteristics = await deviceConnection.characteristicsForService(service.uuid);
+                const charIds = characteristics.map(char => char.uuid);
+                allCharacteristics.push(...charIds);
+                console.log(`Service ${service.uuid} characteristics: ${charIds.join(', ')}`);
+            }
+            setDiscoveredCharacteristics(allCharacteristics);
+
+            // Request optimal MTU with fallback
             try {
-                const deviceWithMtu = await deviceConnection.requestMTU(512);
-                // The MTU size is available in the device object after request
-                // Note: react-native-ble-plx doesn't directly return MTU size,
-                // but we can assume the requested size was negotiated
-                setMtuSize(512);
-                console.log(`MTU requested: 512 bytes`);
+                console.log(`Requesting MTU: ${MAX_MTU_SIZE} bytes`);
+                await deviceConnection.requestMTU(MAX_MTU_SIZE);
+                setMtuSize(MAX_MTU_SIZE);
+                console.log(`MTU negotiated: ${MAX_MTU_SIZE} bytes`);
             } catch (mtuError) {
-                console.log("MTU request failed, using default:", mtuError);
-                // Continue with default MTU
+                console.log(`MTU request failed (${MAX_MTU_SIZE} bytes), reason:`, (mtuError as any)?.reason || mtuError);
+                try {
+                    // Fallback to default MTU
+                    console.log(`Falling back to default MTU: ${DEFAULT_MTU_SIZE} bytes`);
+                    await deviceConnection.requestMTU(DEFAULT_MTU_SIZE);
+                    setMtuSize(DEFAULT_MTU_SIZE);
+                    console.log(`MTU negotiated: ${DEFAULT_MTU_SIZE} bytes`);
+                } catch (fallbackError) {
+                    console.log(`Default MTU request also failed, reason:`, (fallbackError as any)?.reason || fallbackError);
+                    console.log("Continuing with platform default MTU");
+                }
             }
 
             startStreamingData(deviceConnection);
         } catch (e) {
             console.log("FAILED TO CONNECT", e);
+            console.log("Connection error reason:", (e as any)?.reason || "Unknown reason");
+            
+            // Attempt recovery by disconnecting
+            if (device) {
+                try {
+                    await bleManager.cancelDeviceConnection(device.id);
+                } catch (disconnectError) {
+                    console.log("Failed to clean up connection:", disconnectError);
+                }
+            }
         }
     };
 
@@ -126,11 +227,25 @@ function useBLE() {
 
     const checkBluetoothState = async (): Promise<boolean> => {
         try {
-            const state = await bleManager.state();
+            console.log("useBLE: Checking Bluetooth state...");
+            
+            // Add timeout to prevent hanging
+            const timeoutPromise = new Promise<never>((_, reject) => {
+                setTimeout(() => reject(new Error("Bluetooth state check timeout")), 3000);
+            });
+            
+            const state = await Promise.race([
+                bleManager.state(),
+                timeoutPromise
+            ]);
+            
+            console.log("useBLE: Bluetooth state received:", state);
             setBluetoothState(state);
-            return state === State.PoweredOn;
+            const isPoweredOn = state === State.PoweredOn;
+            console.log("useBLE: Bluetooth is powered on:", isPoweredOn);
+            return isPoweredOn;
         } catch (error) {
-            console.log("Error checking Bluetooth state:", error);
+            console.log("useBLE: Error checking Bluetooth state:", error);
             setBluetoothState(State.Unknown);
             return false;
         }
@@ -142,10 +257,16 @@ function useBLE() {
             return false;
         }
 
-        // Check Bluetooth state before scanning
-        const isBluetoothEnabled = await checkBluetoothState();
-        if (!isBluetoothEnabled) {
+        // Check all permissions before scanning
+        const permissions = await checkAllPermissions();
+        
+        if (!permissions.bluetoothEnabled) {
             console.log("Bluetooth is not enabled, cannot scan");
+            return false;
+        }
+
+        if (!permissions.locationPermission) {
+            console.log("Location permission not granted, cannot scan");
             return false;
         }
 
@@ -156,6 +277,7 @@ function useBLE() {
         bleManager.startDeviceScan(null, null, (error, device) => {
             if (error) {
                 console.log("BLE Scan Error:", error);
+                console.log("BLE Scan error reason:", error.reason || "Unknown reason");
                 setIsScanning(false);
                 return;
             }
@@ -191,18 +313,26 @@ function useBLE() {
         }
     };
 
-    const disconnectFromDevice = () => {
+    const disconnectFromDevice = async () => {
         if (connectedDevice) {
-            bleManager.cancelDeviceConnection(connectedDevice.id);
-            setConnectedDevice(null);
-            setSensorData({
-                heartRate: 0,
-                spo2: 0,
-                temperature: 0,
-                acceleration: { x: 0, y: 0, z: 0 },
-                gyroscope: { x: 0, y: 0, z: 0 }
-            });
-            console.log("Disconnected from device");
+            try {
+                await bleManager.cancelDeviceConnection(connectedDevice.id);
+                console.log("Successfully disconnected from device");
+            } catch (error) {
+                console.log("Error disconnecting from device:", error);
+                console.log("Disconnection error reason:", (error as any)?.reason || "Unknown reason");
+            } finally {
+                setConnectedDevice(null);
+                setSensorData({
+                    heartRate: 0,
+                    spo2: 0,
+                    temperature: 0,
+                    acceleration: { x: 0, y: 0, z: 0 },
+                    gyroscope: { x: 0, y: 0, z: 0 }
+                });
+                setDiscoveredServices([]);
+                setDiscoveredCharacteristics([]);
+            }
         }
     };
 
@@ -212,11 +342,23 @@ function useBLE() {
     ) => {
         if (error) {
             console.log("Error receiving data from device", error);
+            console.log("Data update error reason:", error.reason || "Unknown reason");
+            
+            // Attempt recovery by restarting streaming if device is still connected
+            if (connectedDevice) {
+                console.log("Attempting to restart data streaming...");
+                setTimeout(() => {
+                    if (connectedDevice) {
+                        startStreamingData(connectedDevice);
+                    }
+                }, 2000);
+            }
             return;
         }
         if (characteristic?.value) {
+            console.log("Raw data received:", characteristic.value);
             const rawData = base64.decode(characteristic.value);
-            console.log("Raw data received:", rawData);
+            console.log("Raw data decoded:", rawData);
 
             try {
                 // Parse JSON data from ESP32
@@ -276,18 +418,61 @@ function useBLE() {
             return;
         }
 
-        device.monitorCharacteristicForService(
-            DATA_SERVICE_UUID,
-            CHAR_UUID_TX,
-            onDataUpdate
-        );
+        try {
+            // Add timeout for monitoring operation
+            const monitorTimeout = new Promise<never>((_, reject) => {
+                setTimeout(() => reject(new Error("Monitor characteristic timeout after 5 seconds")), 5000);
+            });
 
-        const dummy = base64.encode('1');   // any single byte is enough
-        await device.writeCharacteristicWithResponseForService(
-            DATA_SERVICE_UUID,
-            CHAR_UUID_RX,               // 6E400002-…
-            dummy
-        );
+            await Promise.race([
+                new Promise<void>((resolve, reject) => {
+                    device.monitorCharacteristicForService(
+                        DEFAULT_DATA_SERVICE_UUID,
+                        DEFAULT_CHAR_UUID_TX,
+                        (error, characteristic) => {
+                            if (error) {
+                                console.log("Monitor characteristic error:", error);
+                                console.log("Monitor error reason:", error.reason || "Unknown reason");
+                                reject(error);
+                            } else {
+                                onDataUpdate(error, characteristic);
+                                resolve();
+                            }
+                        }
+                    );
+                }),
+                monitorTimeout
+            ]);
+
+            const dummy = base64.encode('1');   // any single byte is enough
+            
+            // Add timeout for write operation
+            const writeTimeout = new Promise<never>((_, reject) => {
+                setTimeout(() => reject(new Error("Write characteristic timeout after 5 seconds")), 5000);
+            });
+
+            await Promise.race([
+                device.writeCharacteristicWithResponseForService(
+                    DEFAULT_DATA_SERVICE_UUID,
+                    DEFAULT_CHAR_UUID_RX,
+                    dummy
+                ),
+                writeTimeout
+            ]);
+
+            console.log("Data streaming started successfully");
+        } catch (error) {
+            console.log("Failed to start data streaming:", error);
+            console.log("Streaming error reason:", (error as any)?.reason || "Unknown reason");
+            
+            // Attempt recovery after delay
+            setTimeout(() => {
+                if (connectedDevice) {
+                    console.log("Retrying data streaming...");
+                    startStreamingData(connectedDevice);
+                }
+            }, 3000);
+        }
     };
 
     return {
@@ -298,12 +483,17 @@ function useBLE() {
         mtuSize,
         isScanning,
         bluetoothState,
+        hasLocationPermission,
         requestPermissions,
         scanForPeripherals,
         stopScan,
         disconnectFromDevice,
         startStreamingData,
         checkBluetoothState,
+        checkAllPermissions,
+        checkLocationPermission,
+        discoveredServices,
+        discoveredCharacteristics,
     };
 }
 

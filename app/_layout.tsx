@@ -1,12 +1,12 @@
+import ErrorBoundary from "@/components/error-boundary/ErrorBoundary";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { BleProvider } from "@/contexts/BleContext";
+import { HealthDataProvider } from "@/contexts/HealthDataContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { HealthDataProvider } from "@/contexts/HealthDataContext";
-import ErrorBoundary from "@/components/error-boundary/ErrorBoundary";
-import { BleProvider } from "@/contexts/BleContext";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -31,15 +31,8 @@ function RootLayoutNav() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      {isAuthenticated ? (
-        <Stack.Screen name="(tabs)" />
-      ) : (
-        <>
-          <Stack.Screen name="signin" />
-          <Stack.Screen name="signup" />
-          <Stack.Screen name="verify-email" />
-        </>
-      )}
+      {isAuthenticated && <Stack.Screen name="(tabs)" />}
+      {!isAuthenticated && <Stack.Screen name="(public)" />}
     </Stack>
   );
 }

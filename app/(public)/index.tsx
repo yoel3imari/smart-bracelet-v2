@@ -11,10 +11,11 @@ import {
   Droplet,
   Heart,
   HeartCrack,
+  LogIn,
   MoonStarIcon,
   RefreshCw,
   Thermometer,
-  User
+  UserPlus
 } from "lucide-react-native";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -32,7 +33,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 60) / 2;
 
-export default function HomeScreen() {
+export default function PublicHomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const {
@@ -54,7 +55,6 @@ export default function HomeScreen() {
     requestPermissions,
     bluetoothState,
     checkBluetoothState,
-    checkAllPermissions,
   } = useBle();
   const { isAuthenticated } = useAuth();
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -62,10 +62,11 @@ export default function HomeScreen() {
   const [showDeviceModal, setShowDeviceModal] = useState(false);
   const [hasScanError, setHasScanError] = useState(false);
   const [permissionChecked, setPermissionChecked] = useState(false);
+  const [scanInitiated, setScanInitiated] = useState(false);
 
-  // Start scanning when modal opens
+  // Start scanning when modal opens (only once per modal session)
   useEffect(() => {
-    if (showDeviceModal && !isScanning && !hasScanError) {
+    if (showDeviceModal && !isScanning && !hasScanError && !scanInitiated) {
       const initiateScan = async () => {
         try {
           // Check Bluetooth state first
@@ -81,6 +82,7 @@ export default function HomeScreen() {
           if (hasPermissions) {
             console.log("Starting BLE scan...");
             setHasScanError(false);
+            setScanInitiated(true); // Mark scan as initiated for this modal session
             const scanStarted = await startScan();
             if (!scanStarted) {
               setHasScanError(true);
@@ -96,7 +98,7 @@ export default function HomeScreen() {
       };
       initiateScan();
     }
-  }, [showDeviceModal, isScanning, requestPermissions, startScan, hasScanError, checkBluetoothState]);
+  }, [showDeviceModal, isScanning, requestPermissions, startScan, hasScanError, checkBluetoothState, scanInitiated]);
 
   // Check permissions and Bluetooth state on app start
   useEffect(() => {
@@ -125,10 +127,11 @@ export default function HomeScreen() {
     checkPermissionsOnStart();
   }, [checkBluetoothState, requestPermissions, permissionChecked]);
 
-  // Reset scan error when modal closes
+  // Reset scan state when modal closes
   useEffect(() => {
     if (!showDeviceModal) {
       setHasScanError(false);
+      setScanInitiated(false); // Reset scan initiation for next modal session
     }
   }, [showDeviceModal]);
 
@@ -186,6 +189,14 @@ export default function HomeScreen() {
     inputRange: [0, 1],
     outputRange: [1, 1.08],
   });
+
+  const navigateToSignIn = () => {
+    router.push('/signin');
+  };
+
+  const navigateToSignUp = () => {
+    router.push('/signup');
+  };
 
   return (
     <>
@@ -249,19 +260,9 @@ export default function HomeScreen() {
             )}
             <TouchableOpacity
               style={styles.iconButton}
-              onPress={() => {
-                if (isAuthenticated) {
-                  // Navigate to Profile screen if authenticated
-                  router.push('/(tabs)/profile');
-                  // <Redirect href="/(tabs)/profile" />
-                } else {
-                  // Navigate to Sign Up screen if not authenticated
-                  router.push('/signup');
-                  // <Redirect href="/signin" />
-                }
-              }}
+              onPress={navigateToSignIn}
             >
-              <User size={24} color={colors.text} />
+              <LogIn size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
         </View>
@@ -400,6 +401,32 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Authentication Call-to-Action Section */}
+        {!isAuthenticated && (
+          <View style={styles.authSection}>
+            <Text style={styles.authTitle}>Get Full Access</Text>
+            <Text style={styles.authDescription}>
+              Sign up to save your health data, track progress over time, and access advanced features.
+            </Text>
+            <View style={styles.authButtons}>
+              <TouchableOpacity
+                style={styles.signInButton}
+                onPress={navigateToSignIn}
+              >
+                <LogIn size={20} color={colors.primary} />
+                <Text style={styles.signInButtonText}>Sign In</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.signUpButton}
+                onPress={navigateToSignUp}
+              >
+                <UserPlus size={20} color={colors.white} />
+                <Text style={styles.signUpButtonText}>Sign Up</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </ScrollView>
       
       <DeviceModal
@@ -410,8 +437,6 @@ export default function HomeScreen() {
         isScanning={isScanning}
         stopScan={stopScan}
         bluetoothState={bluetoothState}
-        checkAllPermissions={checkAllPermissions}
-        requestPermissions={requestPermissions}
       />
     </>
   );
@@ -694,5 +719,67 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.white,
     fontWeight: '600',
+  },
+  authSection: {
+    marginHorizontal: 20,
+    marginTop: 32,
+    padding: 24,
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  authTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: colors.text,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  authDescription: {
+    fontSize: 14,
+    color: colors.textMuted,
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  authButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  signInButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: colors.white,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  signInButtonText: {
+    color: colors.primary,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  signUpButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  signUpButtonText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

@@ -1,8 +1,8 @@
+import { authService, LoginCredentials, userService, UserVerifyEmail } from '@/services';
 import createContextHook from '@nkzw/create-context-hook';
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authService, userService, setAuthToken, LoginCredentials, User as ApiUser, UserVerifyEmail } from '@/services';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert } from 'react-native';
 
 export interface User {
   id: string;
@@ -16,131 +16,224 @@ export interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isInitialized: boolean;
 }
 
-const STORAGE_KEY = '@auth_user';
-const TOKEN_STORAGE_KEY = '@auth_token';
+const USER_STORAGE_KEY = '@auth_user';
 
 export const [AuthProvider, useAuth] = createContextHook(() => {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
     isAuthenticated: false,
     isLoading: true,
+    isInitialized: false,
   });
 
-  // Load stored user on app start
+  // Load stored user and initialize authentication on app start
   useEffect(() => {
-    loadStoredUser();
+    initializeAuth();
   }, []);
 
-  const loadStoredUser = useCallback(async () => {
+  const initializeAuth = useCallback(async () => {
     try {
-      // For development: Auto-login with demo user
-      const demoUser: User = {
-        id: 'demo-user-id',
-        email: 'demo@example.com',
-        name: 'Demo User',
-        createdAt: new Date(),
-        emailVerified: true,
-      };
+      // Initialize authentication service
+      const isAuthenticated = await authService.initialize();
+      
+      if (isAuthenticated) {
+        // Get user info from token
+        const userInfo = await authService.getUserInfo();
+        
+        if (userInfo) {
+          // Try to load additional user data from storage
+          const storedUser = await loadStoredUser();
+          
+          const user: User = storedUser || {
+            id: userInfo.sub,
+            email: userInfo.email,
+            name: userInfo.email.split('@')[0], // Fallback name from email
+            createdAt: new Date(userInfo.iat * 1000),
+            emailVerified: true, // Assume verified if we have a valid token
+          };
 
-      // Store demo user in AsyncStorage
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(demoUser));
-
+          setAuthState({
+            user,
+            isAuthenticated: true,
+            isLoading: false,
+            isInitialized: true,
+          });
+        } else {
+          // Token exists but can't decode user info
+          await authService.logout();
+          setAuthState({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+            isInitialized: true,
+          });
+        }
+      } else {
+        // No valid authentication
+        setAuthState({
+          user: null,
+          isAuthenticated: false,
+          isLoading: false,
+          isInitialized: true,
+        });
+      }
+    } catch (error) {
+      console.error('Error initializing authentication:', error);
       setAuthState({
-        user: demoUser,
-        isAuthenticated: true,
+        user: null,
+        isAuthenticated: false,
         isLoading: false,
+        isInitialized: true,
       });
+    }
+  }, []);
 
-      console.log('Development mode: Auto-logged in as demo user');
+  const loadStoredUser = useCallback(async (): Promise<User | null> => {
+    try {
+      const storedUser = await AsyncStorage.getItem(USER_STORAGE_KEY);
+      if (storedUser) {
+        const userData = JSON.parse(storedUser);
+        return {
+          ...userData,
+          createdAt: new Date(userData.createdAt),
+        };
+      }
+      return null;
     } catch (error) {
       console.error('Error loading stored user:', error);
-      setAuthState(prev => ({ ...prev, isLoading: false }));
+      return null;
+    }
+  }, []);
+
+  const storeUser = useCallback(async (user: User): Promise<void> => {
+    try {
+      await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+    } catch (error) {
+      console.error('Error storing user:', error);
+    }
+  }, []);
+
+  const clearStoredUser = useCallback(async (): Promise<void> => {
+    try {
+      await AsyncStorage.removeItem(USER_STORAGE_KEY);
+    } catch (error) {
+      console.error('Error clearing stored user:', error);
     }
   }, []);
 
   const signUp = useCallback(async (email: string, name: string, password: string) => {
     try {
-      // For development: Auto-login without API call
-      const user: User = {
-        id: Date.now().toString(),
+      // Create new user using user service
+      const userData = await userService.createUser({
         email,
         name,
-        createdAt: new Date(),
+        password,
+      });
+
+      // Create user object from created user data
+      const user: User = {
+        id: userData.id,
+        email: userData.email || email,
+        name: userData.name || name,
+        createdAt: new Date(userData.created_at),
         emailVerified: false, // New users need email verification
       };
 
-      // Store user in AsyncStorage
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+      // Store user data
+      await storeUser(user);
 
       setAuthState({
         user,
-        isAuthenticated: true,
+        isAuthenticated: false, // User is created but not authenticated yet
         isLoading: false,
+        isInitialized: true,
       });
 
-      console.log('Development mode: Auto-signed up user:', email);
+      console.log('User signed up successfully:', email);
       return { success: true };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Sign up failed';
       Alert.alert('Sign Up Error', message);
       return { success: false, error: message };
     }
-  }, []);
+  }, [storeUser]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     try {
-      // For development: Auto-login without API call
-      const user: User = {
-        id: Date.now().toString(),
-        email,
-        name: email.split('@')[0], // Generate name from email
-        createdAt: new Date(),
-        emailVerified: true, // Assume existing users are verified
+      // Use real authentication service
+      const credentials: LoginCredentials = {
+        username: email,
+        password: password,
       };
 
-      // Store user in AsyncStorage
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+      const token = await authService.login(credentials);
+      
+      // Get user info from token
+      const userInfo = await authService.getUserInfo();
+      if (!userInfo) {
+        throw new Error('Failed to get user information from token');
+      }
+
+      // Try to load existing user data, or create from token
+      let user = await loadStoredUser();
+      if (!user) {
+        user = {
+          id: userInfo.sub,
+          email,
+          name: email.split('@')[0], // Generate name from email
+          createdAt: new Date(userInfo.iat * 1000),
+          emailVerified: true, // Assume existing users are verified
+        };
+        await storeUser(user);
+      }
 
       setAuthState({
         user,
         isAuthenticated: true,
         isLoading: false,
+        isInitialized: true,
       });
 
-      console.log('Development mode: Auto-signed in user:', email);
+      console.log('User signed in successfully:', email);
       return { success: true };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Sign in failed';
       Alert.alert('Sign In Error', message);
       return { success: false, error: message };
     }
-  }, []);
+  }, [loadStoredUser, storeUser]);
 
   const signOut = useCallback(async () => {
     try {
-      await AsyncStorage.removeItem(STORAGE_KEY);
+      // Clear authentication service
+      await authService.logout();
+      
+      // Clear stored user data
+      await clearStoredUser();
       
       setAuthState({
         user: null,
         isAuthenticated: false,
         isLoading: false,
+        isInitialized: true,
       });
 
-      console.log('Development mode: User signed out');
+      console.log('User signed out successfully');
     } catch (error) {
       console.error('Error signing out:', error);
       Alert.alert('Error', 'Failed to sign out');
     }
-  }, []);
+  }, [clearStoredUser]);
 
   const updateUser = useCallback(async (updates: Partial<User>) => {
     try {
       if (!authState.user) return;
 
       const updatedUser = { ...authState.user, ...updates };
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUser));
+      await storeUser(updatedUser);
 
       setAuthState(prev => ({
         ...prev,
@@ -150,7 +243,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       console.error('Error updating user:', error);
       Alert.alert('Error', 'Failed to update profile');
     }
-  }, [authState.user]);
+  }, [authState.user, storeUser]);
 
   const verifyEmail = useCallback(async (code: string): Promise<{ success: boolean; error?: string }> => {
     try {
@@ -168,7 +261,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       
       // Update local user state with verified status
       const updatedUser = { ...authState.user, emailVerified: true };
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUser));
+      await storeUser(updatedUser);
 
       setAuthState(prev => ({
         ...prev,
@@ -180,7 +273,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       const message = error instanceof Error ? error.message : 'Email verification failed';
       return { success: false, error: message };
     }
-  }, [authState.user]);
+  }, [authState.user, storeUser]);
 
   const resendVerificationCode = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
     try {
@@ -198,6 +291,37 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
   }, [authState.user]);
 
+  const refreshUserData = useCallback(async () => {
+    try {
+      if (!authState.user) return;
+
+      // Validate token and refresh if needed
+      const isValid = await authService.validateToken();
+      if (!isValid) {
+        await signOut();
+        return;
+      }
+
+      // Get updated user info from token
+      const userInfo = await authService.getUserInfo();
+      if (userInfo && authState.user) {
+        const updatedUser = {
+          ...authState.user,
+          email: userInfo.email,
+          // Add other fields that might be updated in the token
+        };
+        
+        await storeUser(updatedUser);
+        setAuthState(prev => ({
+          ...prev,
+          user: updatedUser,
+        }));
+      }
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+    }
+  }, [authState.user, signOut, storeUser]);
+
   return useMemo(
     () => ({
       ...authState,
@@ -207,7 +331,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       updateUser,
       verifyEmail,
       resendVerificationCode,
+      refreshUserData,
     }),
-    [authState, signUp, signIn, signOut, updateUser, verifyEmail, resendVerificationCode]
+    [authState, signUp, signIn, signOut, updateUser, verifyEmail, resendVerificationCode, refreshUserData]
   );
 });

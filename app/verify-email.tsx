@@ -1,18 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import colors from '@/constants/colors';
+import { useAuth } from '@/contexts/AuthContext';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { ArrowLeft, Mail, RefreshCw } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
+  Alert,
   ScrollView,
+  StyleSheet,
+  Text,
   TextInput,
   TouchableOpacity,
-  Alert,
+  View,
 } from 'react-native';
-import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, Mail, RefreshCw } from 'lucide-react-native';
-import { useAuth } from '@/contexts/AuthContext';
-import colors from '@/constants/colors';
 
 export default function VerifyEmailScreen() {
   const insets = useSafeAreaInsets();
@@ -51,7 +51,7 @@ export default function VerifyEmailScreen() {
 
     if (result.success) {
       Alert.alert('Success', 'Email verified successfully!', [
-        { text: 'OK', onPress: () => router.replace('/(tabs)') }
+        { text: 'OK', onPress: () => router.replace('/signin') }
       ]);
     } else {
       Alert.alert('Error', result.error || 'Failed to verify email');
@@ -97,7 +97,7 @@ export default function VerifyEmailScreen() {
           <Text style={styles.title}>Check Your Email</Text>
           
           <Text style={styles.description}>
-            We've sent a 6-digit verification code to:
+            We&apos;ve sent a 6-digit verification code to:
           </Text>
           
           <Text style={styles.emailText}>{email}</Text>
@@ -132,7 +132,7 @@ export default function VerifyEmailScreen() {
 
           <View style={styles.resendContainer}>
             <Text style={styles.resendText}>
-              Didn't receive the code?{' '}
+              Didn&apos;t receive the code?{' '}
             </Text>
             <TouchableOpacity 
               onPress={handleResendCode} 

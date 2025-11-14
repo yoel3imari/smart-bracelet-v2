@@ -1,17 +1,20 @@
-import React, { useState, useMemo } from "react";
+import colors from "@/constants/colors";
+import { useAuth } from "@/contexts/AuthContext";
+import { useHealthData } from "@/contexts/HealthDataContext";
+import { useRouter } from "expo-router";
+import { Download, TrendingUp } from "lucide-react-native";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
+  ActivityIndicator,
   Dimensions,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Path, Circle, Line, Text as SvgText } from 'react-native-svg';
-import { Download, TrendingUp } from "lucide-react-native";
-import { useHealthData } from "@/contexts/HealthDataContext";
-import colors from "@/constants/colors";
+import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 
 const { width } = Dimensions.get("window");
 const CHART_WIDTH = width - 40;
@@ -21,8 +24,32 @@ type TimeFilter = "daily" | "weekly" | "monthly";
 
 export default function AnalyticsScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { historicalData } = useHealthData();
+  const { isAuthenticated, isLoading } = useAuth();
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("daily");
+
+  // Redirect to signin if not authenticated
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.replace('/signin');
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  // Show loading while checking authentication
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
+
+  // Don't render content if not authenticated (will redirect)
+  if (!isAuthenticated) {
+    return null;
+  }
 
   const filteredData = useMemo(() => {
     const now = new Date();
@@ -100,7 +127,9 @@ export default function AnalyticsScreen() {
             {min.toFixed(0)}
           </SvgText>
         </Svg>
-        <Text style={styles.chartUnit}>{unit}</Text>
+        <View style={styles.chartUnitContainer}>
+          <Text style={styles.chartUnit}>{unit}</Text>
+        </View>
       </View>
     );
   };
@@ -315,10 +344,15 @@ const styles = StyleSheet.create({
     fontWeight: "600" as const,
     color: colors.success,
   },
+  chartUnitContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "baseline",
+    marginTop: 8,
+  },
   chartUnit: {
     fontSize: 12,
     color: colors.textMuted,
-    marginTop: 8,
-    textAlign: "center",
+    marginLeft: 4,
   },
 });

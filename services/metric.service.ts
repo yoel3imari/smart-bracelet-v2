@@ -1,4 +1,5 @@
-import { apiService, ApiError, NetworkError, ValidationError } from './api';
+import { ApiError, apiService, NetworkError, ValidationError } from './api';
+import { offlineStorageService } from './offline-storage.service';
 
 export enum MetricType {
   SPO2 = "spo2",
@@ -47,7 +48,28 @@ export class MetricService {
    * Create metrics batch for the current device
    */
   async createMetricsBatch(metricsBatch: MetricBatch): Promise<any> {
+    // Validate metrics before processing with detailed error reporting
+    const validation = this.validateMetricsBatch(metricsBatch);
+    if (!validation.valid) {
+      console.warn('Metrics batch validation failed:', validation.errors);
+      
+      // Convert validation errors to the expected format for ValidationError
+      const validationDetails = validation.errors.map((error, index) => ({
+        loc: ['metrics', index],
+        msg: error,
+        type: 'value_error'
+      }));
+      
+      throw new ValidationError('Invalid metrics batch', validationDetails);
+    }
+
     try {
+      // Check if we should use offline storage
+      if (!offlineStorageService.isOnline()) {
+        await offlineStorageService.storeMetrics(metricsBatch.metrics);
+        return { status: 'queued', count: metricsBatch.metrics.length };
+      }
+
       const response = await apiService.post<any>('/api/v1/metrics/batch/', metricsBatch);
       
       // Clear cache after creating new metrics
@@ -55,6 +77,13 @@ export class MetricService {
       
       return response;
     } catch (error) {
+      // On network error, store offline and retry later
+      if (error instanceof NetworkError || (error instanceof ApiError && error.status >= 500)) {
+        await offlineStorageService.storeMetrics(metricsBatch.metrics);
+        return { status: 'queued', count: metricsBatch.metrics.length };
+      }
+      
+      // Re-throw validation and authentication errors
       if (error instanceof ApiError && error.status === 422) {
         throw new ValidationError('Metrics batch validation failed', error.details?.detail);
       }
@@ -84,36 +113,136 @@ export class MetricService {
     }
 
     try {
-      // This endpoint might not exist in the current API
-      // For now, we'll throw not implemented as the API only has batch creation
-      throw new ApiError('Get metrics endpoint not implemented', 501, 'NOT_IMPLEMENTED');
+      const queryParams = new URLSearchParams();
+      
+      if (params.start_date) queryParams.append('start_date', params.start_date);
+      if (params.end_date) queryParams.append('end_date', params.end_date);
+      if (params.metric_type) queryParams.append('metric_type', params.metric_type);
+      if (params.device_id) queryParams.append('device_id', params.device_id);
+      if (params.limit) queryParams.append('limit', params.limit.toString());
+      if (params.offset) queryParams.append('offset', params.offset.toString());
+
+      const queryString = queryParams.toString();
+      const endpoint = queryString ? `/api/v1/metrics/?${queryString}` : '/api/v1/metrics/';
+      
+      const response = await apiService.get<Metric[]>(endpoint);
+      
+      // Cache the results
+      this.cacheMetrics(cacheKey, response);
+      
+      return response;
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        throw new ApiError('Authentication required to access metrics', 401, 'UNAUTHORIZED');
+      }
+      if (error instanceof ApiError && error.status === 403) {
+        throw new ApiError('Admin access required to view all metrics', 403, 'FORBIDDEN');
+      }
       throw error;
     }
   }
 
   /**
-   * Get user metrics (placeholder - endpoint may not exist)
+   * Get metric by ID
+   */
+  async getMetricById(metricId: string): Promise<Metric> {
+    try {
+      const response = await apiService.get<Metric>(`/api/v1/metrics/${metricId}`);
+      return response;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        throw new ApiError('Authentication required to access metric', 401, 'UNAUTHORIZED');
+      }
+      if (error instanceof ApiError && error.status === 403) {
+        throw new ApiError('Insufficient permissions to access metric', 403, 'FORBIDDEN');
+      }
+      if (error instanceof ApiError && error.status === 404) {
+        throw new ApiError('Metric not found', 404, 'NOT_FOUND');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Delete metric (admin only)
+   */
+  async deleteMetric(metricId: string): Promise<void> {
+    try {
+      await apiService.delete(`/api/v1/metrics/${metricId}`);
+      
+      // Clear cache after deletion
+      this.clearCache();
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        throw new ApiError('Authentication required to delete metric', 401, 'UNAUTHORIZED');
+      }
+      if (error instanceof ApiError && error.status === 403) {
+        throw new ApiError('Admin access required to delete metrics', 403, 'FORBIDDEN');
+      }
+      if (error instanceof ApiError && error.status === 404) {
+        throw new ApiError('Metric not found', 404, 'NOT_FOUND');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Get user metrics
    */
   async getUserMetrics(userId: string, params: MetricQueryParams = {}): Promise<Metric[]> {
     try {
-      // This endpoint might not exist in the current API
-      // For now, we'll throw not implemented
-      throw new ApiError('Get user metrics not implemented', 501, 'NOT_IMPLEMENTED');
+      const queryParams = new URLSearchParams();
+      queryParams.append('user_id', userId);
+      
+      if (params.start_date) queryParams.append('start_date', params.start_date);
+      if (params.end_date) queryParams.append('end_date', params.end_date);
+      if (params.metric_type) queryParams.append('metric_type', params.metric_type);
+      if (params.device_id) queryParams.append('device_id', params.device_id);
+      if (params.limit) queryParams.append('limit', params.limit.toString());
+      if (params.offset) queryParams.append('offset', params.offset.toString());
+
+      const queryString = queryParams.toString();
+      const endpoint = `/api/v1/metrics/?${queryString}`;
+      
+      const response = await apiService.get<Metric[]>(endpoint);
+      return response;
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        throw new ApiError('Authentication required to access user metrics', 401, 'UNAUTHORIZED');
+      }
+      if (error instanceof ApiError && error.status === 403) {
+        throw new ApiError('Insufficient permissions to access user metrics', 403, 'FORBIDDEN');
+      }
       throw error;
     }
   }
 
   /**
-   * Get device metrics (placeholder - endpoint may not exist)
+   * Get device metrics
    */
   async getDeviceMetrics(deviceId: string, params: MetricQueryParams = {}): Promise<Metric[]> {
     try {
-      // This endpoint might not exist in the current API
-      // For now, we'll throw not implemented
-      throw new ApiError('Get device metrics not implemented', 501, 'NOT_IMPLEMENTED');
+      const queryParams = new URLSearchParams();
+      queryParams.append('device_id', deviceId);
+      
+      if (params.start_date) queryParams.append('start_date', params.start_date);
+      if (params.end_date) queryParams.append('end_date', params.end_date);
+      if (params.metric_type) queryParams.append('metric_type', params.metric_type);
+      if (params.limit) queryParams.append('limit', params.limit.toString());
+      if (params.offset) queryParams.append('offset', params.offset.toString());
+
+      const queryString = queryParams.toString();
+      const endpoint = `/api/v1/metrics/?${queryString}`;
+      
+      const response = await apiService.get<Metric[]>(endpoint);
+      return response;
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        throw new ApiError('Authentication required to access device metrics', 401, 'UNAUTHORIZED');
+      }
+      if (error instanceof ApiError && error.status === 403) {
+        throw new ApiError('Insufficient permissions to access device metrics', 403, 'FORBIDDEN');
+      }
       throw error;
     }
   }
@@ -155,6 +284,7 @@ export class MetricService {
 
   /**
    * Create health metrics from device data
+   * Filters out invalid data (0 values from unavailable sensors) before creating metrics
    */
   createHealthMetrics(healthData: {
     heartRate?: number;
@@ -165,31 +295,65 @@ export class MetricService {
   }): MetricBase[] {
     const metrics: MetricBase[] = [];
 
-    if (healthData.heartRate !== undefined) {
-      metrics.push({
+    // Filter out 0 values (sensor unavailable) and validate ranges for non-zero values
+    if (healthData.heartRate !== undefined && healthData.heartRate !== 0) {
+      const validation = this.validateMetric({
         metric_type: MetricType.HEART_RATE,
         value: healthData.heartRate,
         unit: 'bpm',
         timestamp: healthData.timestamp,
       });
+      
+      if (validation.valid) {
+        metrics.push({
+          metric_type: MetricType.HEART_RATE,
+          value: healthData.heartRate,
+          unit: 'bpm',
+          timestamp: healthData.timestamp,
+        });
+      } else {
+        console.warn('Filtered invalid heart rate:', healthData.heartRate, validation.error);
+      }
     }
 
-    if (healthData.oxygenLevel !== undefined) {
-      metrics.push({
+    if (healthData.oxygenLevel !== undefined && healthData.oxygenLevel !== 0) {
+      const validation = this.validateMetric({
         metric_type: MetricType.SPO2,
         value: healthData.oxygenLevel,
         unit: '%',
         timestamp: healthData.timestamp,
       });
+      
+      if (validation.valid) {
+        metrics.push({
+          metric_type: MetricType.SPO2,
+          value: healthData.oxygenLevel,
+          unit: '%',
+          timestamp: healthData.timestamp,
+        });
+      } else {
+        console.warn('Filtered invalid SpO2:', healthData.oxygenLevel, validation.error);
+      }
     }
 
-    if (healthData.temperature !== undefined) {
-      metrics.push({
+    if (healthData.temperature !== undefined && healthData.temperature !== 0) {
+      const validation = this.validateMetric({
         metric_type: MetricType.SKIN_TEMPERATURE,
         value: healthData.temperature,
         unit: '°C',
         timestamp: healthData.timestamp,
       });
+      
+      if (validation.valid) {
+        metrics.push({
+          metric_type: MetricType.SKIN_TEMPERATURE,
+          value: healthData.temperature,
+          unit: '°C',
+          timestamp: healthData.timestamp,
+        });
+      } else {
+        console.warn('Filtered invalid temperature:', healthData.temperature, validation.error);
+      }
     }
 
     // Note: Sleep hours would need a new metric type in the API
@@ -200,33 +364,56 @@ export class MetricService {
 
   /**
    * Validate metric data
+   * Allows 0 values (sensor unavailable) while still validating legitimate ranges
    */
-  validateMetric(metric: MetricBase): boolean {
+  validateMetric(metric: MetricBase): { valid: boolean; error?: string } {
     if (!metric.metric_type || !metric.timestamp) {
-      return false;
+      return { valid: false, error: 'Missing required fields: metric_type or timestamp' };
     }
 
-    // Validate value ranges based on metric type
-    if (metric.value !== undefined) {
-      switch (metric.metric_type) {
-        case MetricType.HEART_RATE:
-          return metric.value >= 30 && metric.value <= 220; // Reasonable heart rate range
-        case MetricType.SPO2:
-          return metric.value >= 70 && metric.value <= 100; // Reasonable SpO2 range
-        case MetricType.SKIN_TEMPERATURE:
-          return metric.value >= 20 && metric.value <= 45; // Reasonable skin temperature range
-        case MetricType.AMBIENT_TEMPERATURE:
-          return metric.value >= -50 && metric.value <= 60; // Reasonable ambient temperature range
-        default:
-          return true;
-      }
+    // Allow undefined values (optional metrics)
+    if (metric.value === undefined) {
+      return { valid: true };
     }
 
-    return true;
+    // Allow 0 values (sensor unavailable) but validate non-zero values
+    if (metric.value === 0) {
+      return { valid: true };
+    }
+
+    // Validate value ranges based on metric type for non-zero values
+    switch (metric.metric_type) {
+      case MetricType.HEART_RATE:
+        if (metric.value < 30 || metric.value > 220) {
+          return { valid: false, error: `Heart rate value ${metric.value} is outside valid range (30-220 bpm)` };
+        }
+        break;
+      case MetricType.SPO2:
+        if (metric.value < 70 || metric.value > 100) {
+          return { valid: false, error: `SpO2 value ${metric.value} is outside valid range (70-100%)` };
+        }
+        break;
+      case MetricType.SKIN_TEMPERATURE:
+        if (metric.value < 20 || metric.value > 45) {
+          return { valid: false, error: `Skin temperature value ${metric.value} is outside valid range (20-45°C)` };
+        }
+        break;
+      case MetricType.AMBIENT_TEMPERATURE:
+        if (metric.value < -50 || metric.value > 60) {
+          return { valid: false, error: `Ambient temperature value ${metric.value} is outside valid range (-50-60°C)` };
+        }
+        break;
+      default:
+        // Unknown metric type - allow any value
+        break;
+    }
+
+    return { valid: true };
   }
 
   /**
    * Validate metrics batch
+   * Provides detailed error messages for validation failures
    */
   validateMetricsBatch(batch: MetricBatch): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
@@ -242,8 +429,12 @@ export class MetricService {
     }
 
     for (let i = 0; i < batch.metrics.length; i++) {
-      if (!this.validateMetric(batch.metrics[i])) {
-        errors.push(`Metric at index ${i} is invalid`);
+      const metric = batch.metrics[i];
+      const validation = this.validateMetric(metric);
+      
+      if (!validation.valid) {
+        const metricInfo = `[${metric.metric_type}] value: ${metric.value}`;
+        errors.push(`Metric at index ${i} (${metricInfo}) is invalid: ${validation.error}`);
       }
     }
 

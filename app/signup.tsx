@@ -1,18 +1,18 @@
+import colors from '@/constants/colors';
+import { useAuth } from '@/contexts/AuthContext';
+import { Stack, useRouter } from 'expo-router';
+import { ArrowLeft, Lock, Mail, User } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
+  Alert,
   ScrollView,
+  StyleSheet,
+  Text,
   TextInput,
   TouchableOpacity,
-  Alert,
+  View,
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, User, Mail, Lock } from 'lucide-react-native';
-import { useAuth } from '@/contexts/AuthContext';
-import colors from '@/constants/colors';
 
 export default function SignUpScreen() {
   const insets = useSafeAreaInsets();
@@ -50,6 +50,9 @@ export default function SignUpScreen() {
         pathname: '/verify-email',
         params: { email: formData.email }
       } as any);
+    } else {
+      // Show error message if signup failed
+      Alert.alert('Sign Up Failed', result.error || 'Please try again');
     }
   };
 

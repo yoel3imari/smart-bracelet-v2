@@ -1,4 +1,4 @@
-import { apiService, setApiKey, ApiError, NetworkError, ValidationError } from './api';
+import { ApiError, apiService, setApiKey, ValidationError } from './api';
 
 export interface Device {
   id: string;
@@ -84,53 +84,122 @@ export class DeviceService {
   }
 
   /**
-   * Get device by ID (placeholder - endpoint may not exist)
-   */
-  async getDeviceById(deviceId: string): Promise<Device> {
-    try {
-      // This endpoint might not exist in the current API
-      // For now, we'll throw not implemented
-      throw new ApiError('Get device by ID not implemented', 501, 'NOT_IMPLEMENTED');
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  /**
-   * Get user's devices (placeholder - endpoint may not exist)
+   * Get user's devices
    */
   async getUserDevices(): Promise<Device[]> {
     try {
-      // This endpoint might not exist in the current API
-      // For now, we'll throw not implemented
-      throw new ApiError('Get user devices not implemented', 501, 'NOT_IMPLEMENTED');
+      const response = await apiService.get<Device[]>('/api/v1/devices/');
+      return response;
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        throw new ApiError('Authentication required to access user devices', 401, 'UNAUTHORIZED');
+      }
+      if (error instanceof ApiError && error.status === 403) {
+        throw new ApiError('Insufficient permissions to access devices', 403, 'FORBIDDEN');
+      }
       throw error;
     }
   }
 
   /**
-   * Update device information (placeholder - endpoint may not exist)
+   * Get device by ID
+   */
+  async getDeviceById(deviceId: string): Promise<Device> {
+    try {
+      const response = await apiService.get<Device>(`/api/v1/devices/${deviceId}`);
+      return response;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        throw new ApiError('Authentication required to access device', 401, 'UNAUTHORIZED');
+      }
+      if (error instanceof ApiError && error.status === 403) {
+        throw new ApiError('Insufficient permissions to access device', 403, 'FORBIDDEN');
+      }
+      if (error instanceof ApiError && error.status === 404) {
+        throw new ApiError('Device not found', 404, 'NOT_FOUND');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Update device information
    */
   async updateDevice(deviceId: string, updates: Partial<Device>): Promise<Device> {
     try {
-      // This endpoint might not exist in the current API
-      // For now, we'll throw not implemented
-      throw new ApiError('Update device not implemented', 501, 'NOT_IMPLEMENTED');
+      const response = await apiService.put<Device>(`/api/v1/devices/${deviceId}`, updates);
+      
+      // Update current device if it's the one being updated
+      if (this.currentDevice && this.currentDevice.id === deviceId) {
+        this.currentDevice = { ...this.currentDevice, ...updates };
+      }
+      
+      return response;
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        throw new ApiError('Authentication required to update device', 401, 'UNAUTHORIZED');
+      }
+      if (error instanceof ApiError && error.status === 403) {
+        throw new ApiError('Insufficient permissions to update device', 403, 'FORBIDDEN');
+      }
+      if (error instanceof ApiError && error.status === 404) {
+        throw new ApiError('Device not found', 404, 'NOT_FOUND');
+      }
+      if (error instanceof ApiError && error.status === 422) {
+        throw new ValidationError('Device update validation failed', error.details?.detail);
+      }
       throw error;
     }
   }
 
   /**
-   * Deactivate device (placeholder - endpoint may not exist)
+   * Delete device
+   */
+  async deleteDevice(deviceId: string): Promise<void> {
+    try {
+      await apiService.delete(`/api/v1/devices/${deviceId}`);
+      
+      // Clear current device if it's the one being deleted
+      if (this.currentDevice && this.currentDevice.id === deviceId) {
+        this.clearCurrentDevice();
+      }
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        throw new ApiError('Authentication required to delete device', 401, 'UNAUTHORIZED');
+      }
+      if (error instanceof ApiError && error.status === 403) {
+        throw new ApiError('Insufficient permissions to delete device', 403, 'FORBIDDEN');
+      }
+      if (error instanceof ApiError && error.status === 404) {
+        throw new ApiError('Device not found', 404, 'NOT_FOUND');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Deactivate device (alias for delete with soft delete)
    */
   async deactivateDevice(deviceId: string): Promise<Device> {
     try {
-      // This endpoint might not exist in the current API
-      // For now, we'll throw not implemented
-      throw new ApiError('Deactivate device not implemented', 501, 'NOT_IMPLEMENTED');
+      const response = await apiService.put<Device>(`/api/v1/devices/${deviceId}`, { is_active: false });
+      
+      // Update current device if it's the one being deactivated
+      if (this.currentDevice && this.currentDevice.id === deviceId) {
+        this.currentDevice = { ...this.currentDevice, is_active: false };
+      }
+      
+      return response;
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        throw new ApiError('Authentication required to deactivate device', 401, 'UNAUTHORIZED');
+      }
+      if (error instanceof ApiError && error.status === 403) {
+        throw new ApiError('Insufficient permissions to deactivate device', 403, 'FORBIDDEN');
+      }
+      if (error instanceof ApiError && error.status === 404) {
+        throw new ApiError('Device not found', 404, 'NOT_FOUND');
+      }
       throw error;
     }
   }
@@ -153,13 +222,22 @@ export class DeviceService {
   }
 
   /**
-   * Get device metrics (placeholder - would use MetricService)
+   * Get device metrics
    */
   async getDeviceMetrics(deviceId: string): Promise<any[]> {
     try {
-      // This would be implemented in MetricService
-      throw new ApiError('Get device metrics not implemented', 501, 'NOT_IMPLEMENTED');
+      const response = await apiService.get<any[]>(`/api/v1/devices/${deviceId}/metrics`);
+      return response;
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        throw new ApiError('Authentication required to access device metrics', 401, 'UNAUTHORIZED');
+      }
+      if (error instanceof ApiError && error.status === 403) {
+        throw new ApiError('Insufficient permissions to access device metrics', 403, 'FORBIDDEN');
+      }
+      if (error instanceof ApiError && error.status === 404) {
+        throw new ApiError('Device not found', 404, 'NOT_FOUND');
+      }
       throw error;
     }
   }

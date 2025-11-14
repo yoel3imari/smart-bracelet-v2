@@ -51,7 +51,7 @@ export default function SignInScreen() {
       />
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
         <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.push("/(public)")}>
             <ArrowLeft size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Sign In</Text>

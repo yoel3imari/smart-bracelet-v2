@@ -1,6 +1,6 @@
-import createContextHook from '@nkzw/create-context-hook';
-import { useState, useEffect, useCallback, useMemo } from 'react';
 import useBLE from '@/hooks/use-ble';
+import createContextHook from '@nkzw/create-context-hook';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Device } from 'react-native-ble-plx';
 
 export interface BleState {
@@ -17,6 +17,7 @@ export interface BleState {
   isConnected: boolean;
   connectionError: string | null;
   bluetoothState: string;
+  hasLocationPermission: boolean;
 }
 
 export interface BleActions {
@@ -26,6 +27,11 @@ export interface BleActions {
   scanForPeripherals: () => Promise<boolean>;
   stopScan: () => void;
   checkBluetoothState: () => Promise<boolean>;
+  checkAllPermissions: () => Promise<{
+    bluetoothEnabled: boolean;
+    locationPermission: boolean;
+  }>;
+  checkLocationPermission: () => Promise<boolean>;
 }
 
 export const [BleProvider, useBle] = createContextHook(() => {
@@ -35,12 +41,16 @@ export const [BleProvider, useBle] = createContextHook(() => {
     sensorData,
     isScanning,
     bluetoothState,
+    hasLocationPermission,
     connectToDevice,
     requestPermissions,
     scanForPeripherals,
     stopScan,
     disconnectFromDevice,
+    startStreamingData,
     checkBluetoothState,
+    checkAllPermissions,
+    checkLocationPermission,
   } = useBLE();
 
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -76,7 +86,8 @@ export const [BleProvider, useBle] = createContextHook(() => {
     isConnected: !!connectedDevice,
     connectionError,
     bluetoothState,
-  }), [allDevices, connectedDevice, sensorData, isScanning, connectionError, bluetoothState]);
+    hasLocationPermission,
+  }), [allDevices, connectedDevice, sensorData, isScanning, connectionError, bluetoothState, hasLocationPermission]);
 
   const actions: BleActions = useMemo(() => ({
     connectToDevice: handleConnectToDevice,
@@ -85,7 +96,9 @@ export const [BleProvider, useBle] = createContextHook(() => {
     scanForPeripherals,
     stopScan,
     checkBluetoothState,
-  }), [handleConnectToDevice, handleDisconnectFromDevice, requestPermissions, scanForPeripherals, stopScan, checkBluetoothState]);
+    checkAllPermissions,
+    checkLocationPermission,
+  }), [handleConnectToDevice, handleDisconnectFromDevice, requestPermissions, scanForPeripherals, stopScan, checkBluetoothState, checkAllPermissions, checkLocationPermission]);
 
   return useMemo(() => ({
     ...state,

@@ -1,7 +1,7 @@
+import { issueService, metricService, offlineStorageService } from '@/services';
 import createContextHook from '@nkzw/create-context-hook';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useBle } from './BleContext';
-import { metricService, issueService, MetricType } from '@/services';
 
 export interface HealthData {
   heartRate: number;
@@ -89,14 +89,14 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
       });
 
       // Send metrics to backend if device is registered
-      // sendMetricsToBackend(newData, new Date());
+      sendMetricsToBackend(newData, new Date());
 
       // Check for alerts based on health data
       // checkForAlerts(newData);
     }
   }, [bleSensorData, isConnected]);
 
-  // Send health metrics to backend
+  // Send health metrics to backend or offline storage
   const sendMetricsToBackend = useCallback(async (data: HealthData, timestamp: Date) => {
     try {
       const metrics = metricService.createHealthMetrics({
@@ -108,11 +108,31 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
       });
 
       if (metrics.length > 0) {
-        await metricService.createMetricsBatch({ metrics });
-        console.log('Metrics sent to backend successfully');
+        // Check connectivity and use appropriate storage
+        if (offlineStorageService.isOnline()) {
+          await metricService.createMetricsBatch({ metrics });
+          console.log('Metrics sent to backend successfully');
+        } else {
+          await offlineStorageService.storeMetrics(metrics);
+          console.log('Metrics stored offline for later sync');
+        }
       }
     } catch (error) {
-      console.error('Failed to send metrics to backend:', error);
+      console.error('Failed to send/store metrics:', error);
+      // Fallback to offline storage on any error
+      try {
+        const metrics = metricService.createHealthMetrics({
+          heartRate: data.heartRate,
+          oxygenLevel: data.oxygenLevel,
+          temperature: data.temperature,
+          sleepHours: data.sleepHours,
+          timestamp: timestamp.toISOString(),
+        });
+        await offlineStorageService.storeMetrics(metrics);
+        console.log('Metrics stored offline as fallback');
+      } catch (fallbackError) {
+        console.error('Failed to store metrics offline:', fallbackError);
+      }
     }
   }, []);
 

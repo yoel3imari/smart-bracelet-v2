@@ -1,7 +1,7 @@
-import { Tabs, useRouter } from "expo-router";
-import { Home, BarChart3, User, Settings } from "lucide-react-native";
-import React, { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { Tabs, useRouter } from "expo-router";
+import { BarChart3, Home, Settings, User } from "lucide-react-native";
+import React, { useEffect } from "react";
 
 import colors from "@/constants/colors";
 import useBLE from "@/hooks/use-ble";
@@ -21,13 +21,6 @@ export default function TabLayout() {
     disconnectFromDevice,
   } = useBLE();
   
-  // Redirect to sign in if not authenticated
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.replace('/signin');
-    }
-  }, [isAuthenticated, isLoading, router]);
-
   // Redirect to email verification if authenticated but email not verified
   useEffect(() => {
     if (!isLoading && isAuthenticated && user && !user.emailVerified) {
@@ -38,7 +31,7 @@ export default function TabLayout() {
     }
   }, [isAuthenticated, isLoading, user, router]);
 
-  if (isLoading || !isAuthenticated || (user && !user.emailVerified)) {
+  if (isLoading || (isAuthenticated && user && !user.emailVerified)) {
     return null; // Will redirect in useEffect
   }
 

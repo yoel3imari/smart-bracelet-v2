@@ -1,4 +1,4 @@
-import { apiService, ApiError, NetworkError, ValidationError } from './api';
+import { ApiError, apiService, ValidationError } from './api';
 
 export enum IssueSeverity {
   LOW = "low",
@@ -47,7 +47,7 @@ export class IssueService {
   private issuesCache: Map<string, Issue[]> = new Map();
 
   /**
-   * Get user issues (placeholder - endpoint may not exist)
+   * Get user issues
    */
   async getUserIssues(userId: string, params: IssueQueryParams = {}): Promise<Issue[]> {
     const cacheKey = this.generateCacheKey(userId, params);
@@ -58,75 +58,85 @@ export class IssueService {
     }
 
     try {
-      // This endpoint might not exist in the current API
-      // For now, we'll return mock data or throw not implemented
-      const mockIssues: Issue[] = [
-        {
-          id: '1',
-          user_id: userId,
-          issue_type: 'high_heart_rate',
-          description: 'Heart rate above normal range detected',
-          severity: IssueSeverity.MODERATE,
-          detected_at: new Date().toISOString(),
-          resolved: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: '2',
-          user_id: userId,
-          issue_type: 'low_oxygen',
-          description: 'Oxygen saturation below normal range',
-          severity: IssueSeverity.CRITICAL,
-          detected_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          resolved: true,
-          created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          updated_at: new Date().toISOString(),
-        }
-      ];
-
-      // Filter based on params
-      let filteredIssues = mockIssues;
+      const queryParams = new URLSearchParams();
+      queryParams.append('user_id', userId);
       
-      if (params.severity) {
-        filteredIssues = filteredIssues.filter(issue => issue.severity === params.severity);
-      }
-      
-      if (params.resolved !== undefined) {
-        filteredIssues = filteredIssues.filter(issue => issue.resolved === params.resolved);
-      }
+      if (params.severity) queryParams.append('severity', params.severity);
+      if (params.resolved !== undefined) queryParams.append('resolved', params.resolved.toString());
+      if (params.start_date) queryParams.append('start_date', params.start_date);
+      if (params.end_date) queryParams.append('end_date', params.end_date);
+      if (params.limit) queryParams.append('limit', params.limit.toString());
+      if (params.offset) queryParams.append('offset', params.offset.toString());
 
+      const queryString = queryParams.toString();
+      const endpoint = queryString ? `/api/v1/issues/?${queryString}` : '/api/v1/issues/';
+      
+      const response = await apiService.get<Issue[]>(endpoint);
+      
       // Cache the results
-      this.cacheIssues(cacheKey, filteredIssues);
+      this.cacheIssues(cacheKey, response);
       
-      return filteredIssues;
+      return response;
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        throw new ApiError('Authentication required to access issues', 401, 'UNAUTHORIZED');
+      }
+      if (error instanceof ApiError && error.status === 403) {
+        throw new ApiError('Insufficient permissions to access issues', 403, 'FORBIDDEN');
+      }
       throw error;
     }
   }
 
   /**
-   * Create a new issue (placeholder - endpoint may not exist)
+   * Create a new issue
    */
   async createIssue(issueData: IssueCreate): Promise<Issue> {
     try {
-      // This endpoint might not exist in the current API
-      // For now, we'll throw not implemented
-      throw new ApiError('Create issue not implemented', 501, 'NOT_IMPLEMENTED');
+      const response = await apiService.post<Issue>('/api/v1/issues/', issueData);
+      
+      // Clear cache after creating new issue
+      this.clearCache();
+      
+      return response;
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        throw new ApiError('Authentication required to create issue', 401, 'UNAUTHORIZED');
+      }
+      if (error instanceof ApiError && error.status === 403) {
+        throw new ApiError('Insufficient permissions to create issue', 403, 'FORBIDDEN');
+      }
+      if (error instanceof ApiError && error.status === 422) {
+        throw new ValidationError('Issue creation validation failed', error.details?.detail);
+      }
       throw error;
     }
   }
 
   /**
-   * Update an issue (placeholder - endpoint may not exist)
+   * Update an issue
    */
   async updateIssue(issueId: string, updates: IssueUpdate): Promise<Issue> {
     try {
-      // This endpoint might not exist in the current API
-      // For now, we'll throw not implemented
-      throw new ApiError('Update issue not implemented', 501, 'NOT_IMPLEMENTED');
+      const response = await apiService.put<Issue>(`/api/v1/issues/${issueId}`, updates);
+      
+      // Clear cache after updating issue
+      this.clearCache();
+      
+      return response;
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        throw new ApiError('Authentication required to update issue', 401, 'UNAUTHORIZED');
+      }
+      if (error instanceof ApiError && error.status === 403) {
+        throw new ApiError('Insufficient permissions to update issue', 403, 'FORBIDDEN');
+      }
+      if (error instanceof ApiError && error.status === 404) {
+        throw new ApiError('Issue not found', 404, 'NOT_FOUND');
+      }
+      if (error instanceof ApiError && error.status === 422) {
+        throw new ValidationError('Issue update validation failed', error.details?.detail);
+      }
       throw error;
     }
   }
@@ -143,14 +153,45 @@ export class IssueService {
   }
 
   /**
-   * Get issue by ID (placeholder - endpoint may not exist)
+   * Get issue by ID
    */
   async getIssueById(issueId: string): Promise<Issue> {
     try {
-      // This endpoint might not exist in the current API
-      // For now, we'll throw not implemented
-      throw new ApiError('Get issue by ID not implemented', 501, 'NOT_IMPLEMENTED');
+      const response = await apiService.get<Issue>(`/api/v1/issues/${issueId}`);
+      return response;
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        throw new ApiError('Authentication required to access issue', 401, 'UNAUTHORIZED');
+      }
+      if (error instanceof ApiError && error.status === 403) {
+        throw new ApiError('Insufficient permissions to access issue', 403, 'FORBIDDEN');
+      }
+      if (error instanceof ApiError && error.status === 404) {
+        throw new ApiError('Issue not found', 404, 'NOT_FOUND');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Delete issue (soft delete)
+   */
+  async deleteIssue(issueId: string): Promise<void> {
+    try {
+      await apiService.delete(`/api/v1/issues/${issueId}`);
+      
+      // Clear cache after deleting issue
+      this.clearCache();
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        throw new ApiError('Authentication required to delete issue', 401, 'UNAUTHORIZED');
+      }
+      if (error instanceof ApiError && error.status === 403) {
+        throw new ApiError('Insufficient permissions to delete issue', 403, 'FORBIDDEN');
+      }
+      if (error instanceof ApiError && error.status === 404) {
+        throw new ApiError('Issue not found', 404, 'NOT_FOUND');
+      }
       throw error;
     }
   }

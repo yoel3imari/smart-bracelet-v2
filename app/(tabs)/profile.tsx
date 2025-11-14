@@ -1,17 +1,19 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Bluetooth, Edit2, Save, X, LogOut } from 'lucide-react-native';
-import { useHealthData } from '@/contexts/HealthDataContext';
-import { useAuth } from '@/contexts/AuthContext';
 import colors from '@/constants/colors';
+import { useAuth } from '@/contexts/AuthContext';
+import { useHealthData } from '@/contexts/HealthDataContext';
+import { useRouter } from 'expo-router';
+import { Bluetooth, Edit2, LogOut, Save, X } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type TabType = 'profile' | 'medical';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { userProfile, updateUserProfile } = useHealthData();
-  const { user, signOut, updateUser } = useAuth();
+  const { user, signOut, updateUser, isAuthenticated, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('profile');
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editedProfile, setEditedProfile] = useState(userProfile);
@@ -20,6 +22,28 @@ export default function ProfileScreen() {
     email: user?.email || '',
     password: '',
   });
+
+  // Redirect to signin if not authenticated
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.replace('/signin');
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  // Show loading while checking authentication
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
+
+  // Don't render content if not authenticated (will redirect)
+  if (!isAuthenticated) {
+    return null;
+  }
 
   const handleSave = () => {
     // Update user profile data

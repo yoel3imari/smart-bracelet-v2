@@ -1,10 +1,11 @@
-import React, { FC, useCallback } from "react";
+import React, { FC, useCallback, useEffect, useState } from "react";
 import {
   FlatList,
+  Linking,
   ListRenderItemInfo,
   Modal,
-  Text,
   StyleSheet,
+  Text,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -25,6 +26,11 @@ type DeviceModalProps = {
   isScanning: boolean;
   stopScan: () => void;
   bluetoothState?: string;
+  checkAllPermissions?: () => Promise<{
+    bluetoothEnabled: boolean;
+    locationPermission: boolean;
+  }>;
+  requestPermissions?: () => Promise<boolean>;
 };
 
 const DeviceModalListItem: FC<DeviceModalListItemProps> = (props) => {
@@ -48,7 +54,26 @@ const DeviceModalListItem: FC<DeviceModalListItemProps> = (props) => {
 };
 
 export const DeviceModal: FC<DeviceModalProps> = (props) => {
-  const { devices, visible, connectToPeripheral, closeModal, isScanning, stopScan, bluetoothState } = props;
+  const {
+    devices,
+    visible,
+    connectToPeripheral,
+    closeModal,
+    isScanning,
+    stopScan,
+    bluetoothState,
+    checkAllPermissions,
+    requestPermissions
+  } = props;
+
+  const [permissions, setPermissions] = useState<{
+    bluetoothEnabled: boolean;
+    locationPermission: boolean;
+  }>({
+    bluetoothEnabled: false,
+    locationPermission: false
+  });
+  const [permissionsChecked, setPermissionsChecked] = useState(false);
 
   const renderDeviceModalListItem = useCallback(
     (item: ListRenderItemInfo<Device>) => {
@@ -70,16 +95,80 @@ export const DeviceModal: FC<DeviceModalProps> = (props) => {
     closeModal();
   };
 
-  // Start scanning when modal becomes visible
-  React.useEffect(() => {
-    if (visible && !isScanning) {
-      // We need to trigger scanning from the parent component
-      // This will be handled by the parent component via the useEffect
+  // Check permissions when modal becomes visible
+  useEffect(() => {
+    let isMounted = true;
+    
+    const checkPermissions = async () => {
+      console.log("BLE Modal: Starting permission check, visible:", visible, "checkAllPermissions:", !!checkAllPermissions);
+      
+      if (visible) {
+        if (checkAllPermissions) {
+          try {
+            console.log("BLE Modal: Calling checkAllPermissions...");
+            
+            // Add timeout to prevent hanging
+            const timeoutPromise = new Promise<never>((_, reject) => {
+              setTimeout(() => reject(new Error("Permission check timeout")), 5000);
+            });
+            
+            const permissionStatus = await Promise.race([
+              checkAllPermissions(),
+              timeoutPromise
+            ]);
+            
+            if (isMounted) {
+              console.log("BLE Modal: Permission check completed:", permissionStatus);
+              setPermissions(permissionStatus);
+              setPermissionsChecked(true);
+              console.log("BLE Modal: permissionsChecked set to true");
+            }
+          } catch (error) {
+            console.log("BLE Modal: Error checking permissions:", error);
+            // Always set permissionsChecked to true even on error/timeout
+            // to prevent infinite loading state
+            if (isMounted) {
+              setPermissionsChecked(true);
+              console.log("BLE Modal: permissionsChecked set to true (error case)");
+            }
+          }
+        } else {
+          // If checkAllPermissions is not available, use default permissions
+          // and proceed to show device scanning UI
+          console.log("BLE Modal: checkAllPermissions not available, using default permissions");
+          if (isMounted) {
+            setPermissions({
+              bluetoothEnabled: true,
+              locationPermission: true
+            });
+            setPermissionsChecked(true);
+            console.log("BLE Modal: permissionsChecked set to true (default permissions)");
+          }
+        }
+      }
+    };
+
+    checkPermissions();
+
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      isMounted = false;
+    };
+  }, [visible, checkAllPermissions]);
+
+  // Reset permissions check when modal closes
+  useEffect(() => {
+    if (!visible) {
+      setPermissionsChecked(false);
     }
-  }, [visible, isScanning]);
+  }, [visible]);
 
   const getModalTitle = () => {
-    if (bluetoothState === 'PoweredOff') {
+    if (!permissions.bluetoothEnabled) {
+      return "Bluetooth Required";
+    } else if (!permissions.locationPermission) {
+      return "Location Permission Required";
+    } else if (bluetoothState === 'PoweredOff') {
       return "Bluetooth is Disabled";
     } else if (isScanning) {
       return "Scanning for devices...";
@@ -88,7 +177,73 @@ export const DeviceModal: FC<DeviceModalProps> = (props) => {
     }
   };
 
+  const handleRequestPermissions = async () => {
+    if (requestPermissions) {
+      const granted = await requestPermissions();
+      if (granted && checkAllPermissions) {
+        const permissionStatus = await checkAllPermissions();
+        setPermissions(permissionStatus);
+      }
+    }
+  };
+
+  const openSettings = () => {
+    Linking.openSettings();
+  };
+
   const getModalContent = () => {
+    // Show loading while checking permissions
+    if (!permissionsChecked) {
+      return (
+        <View style={modalStyle.errorContainer}>
+          <Text style={modalStyle.errorText}>
+            Checking permissions...
+          </Text>
+        </View>
+      );
+    }
+
+    // Show Bluetooth disabled message
+    if (!permissions.bluetoothEnabled) {
+      return (
+        <View style={modalStyle.errorContainer}>
+          <Text style={modalStyle.errorText}>
+            Bluetooth is required to scan for and connect to health monitoring devices.
+          </Text>
+          <Text style={[modalStyle.errorText, modalStyle.instructionText]}>
+            Please enable Bluetooth in your device settings to continue.
+          </Text>
+          <TouchableOpacity
+            style={[modalStyle.ctaButton, modalStyle.permissionButton]}
+            onPress={openSettings}
+          >
+            <Text style={modalStyle.ctaButtonText}>Open Settings</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    // Show location permission required message
+    if (!permissions.locationPermission) {
+      return (
+        <View style={modalStyle.errorContainer}>
+          <Text style={modalStyle.errorText}>
+            Location permission is required to scan for nearby Bluetooth devices.
+          </Text>
+          <Text style={[modalStyle.errorText, modalStyle.instructionText]}>
+            This app needs location access to discover Bluetooth devices in your vicinity.
+          </Text>
+          <TouchableOpacity
+            style={[modalStyle.ctaButton, modalStyle.permissionButton]}
+            onPress={handleRequestPermissions}
+          >
+            <Text style={modalStyle.ctaButtonText}>Grant Location Permission</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    // Show Bluetooth powered off message
     if (bluetoothState === 'PoweredOff') {
       return (
         <View style={modalStyle.errorContainer}>
@@ -97,25 +252,26 @@ export const DeviceModal: FC<DeviceModalProps> = (props) => {
           </Text>
         </View>
       );
-    } else {
-      return (
-        <FlatList
-          style={modalStyle.flatList}
-          contentContainerStyle={modalStyle.modalFlatlistContainer}
-          data={devices}
-          renderItem={renderDeviceModalListItem}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={true}
-          ListEmptyComponent={
-            <View style={modalStyle.emptyContainer}>
-              <Text style={modalStyle.emptyText}>
-                {isScanning ? "Searching for devices..." : "No devices found"}
-              </Text>
-            </View>
-          }
-        />
-      );
     }
+
+    // Show device list when all permissions are granted
+    return (
+      <FlatList
+        style={modalStyle.flatList}
+        contentContainerStyle={modalStyle.modalFlatlistContainer}
+        data={devices}
+        renderItem={renderDeviceModalListItem}
+        keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={true}
+        ListEmptyComponent={
+          <View style={modalStyle.emptyContainer}>
+            <Text style={modalStyle.emptyText}>
+              {isScanning ? "Searching for devices..." : "No devices found"}
+            </Text>
+          </View>
+        }
+      />
+    );
   };
 
   return (
@@ -139,7 +295,7 @@ export const DeviceModal: FC<DeviceModalProps> = (props) => {
             style={[modalStyle.ctaButton, modalStyle.stopButton]}
           >
             <Text style={modalStyle.ctaButtonText}>
-              {bluetoothState === 'PoweredOff' ? 'Close' : (isScanning ? "Stop Scan & Close" : "Close")}
+              {(!permissions.bluetoothEnabled || !permissions.locationPermission || bluetoothState === 'PoweredOff') ? 'Close' : (isScanning ? "Stop Scan & Close" : "Close")}
             </Text>
           </TouchableOpacity>
         </View>
@@ -220,6 +376,14 @@ const modalStyle = StyleSheet.create({
     textAlign: "center",
     color: "#666666",
     lineHeight: 24,
+  },
+  instructionText: {
+    marginTop: 16,
+    fontSize: 14,
+  },
+  permissionButton: {
+    marginTop: 20,
+    backgroundColor: "#4CAF50",
   },
 });
 
