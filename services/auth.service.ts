@@ -74,7 +74,7 @@ export class AuthService {
   /**
    * Logout and clear stored tokens
    */
-  async logout(): Promise<void> {
+  async logout(): Promise<void> {14
     // Clear stored tokens
     await tokenService.clearTokens();
     

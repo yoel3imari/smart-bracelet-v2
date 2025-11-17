@@ -24,7 +24,7 @@ const USER_STORAGE_KEY = '@auth_user';
 export const [AuthProvider, useAuth] = createContextHook(() => {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
-    isAuthenticated: false,
+    isAuthenticated: true,
     isLoading: true,
     isInitialized: false,
   });
