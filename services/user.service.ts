@@ -18,7 +18,6 @@ export interface UserCreate {
   email: string;
   name: string;
   password: string;
-  is_admin?: boolean;
 }
 
 export interface UserUpdate {
@@ -90,7 +89,7 @@ export class UserService {
    */
   async createUser(userData: UserCreate): Promise<User> {
     try {
-      return await apiService.post<User>('/api/v1/users/', userData);
+      return await apiService.post<User>('/api/v1/users', userData);
     } catch (error) {
       if (error instanceof ApiError && error.status === 422) {
         throw new ValidationError('User creation validation failed', error.details?.detail);

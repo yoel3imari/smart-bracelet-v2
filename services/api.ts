@@ -126,7 +126,7 @@ export class ApiService {
     const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
 
     try {
-      console.log(url);
+      console.log(options.method + " => " + url);
       
       const response = await fetch(url, {
         ...options,
@@ -175,12 +175,15 @@ export class ApiService {
       }
 
       // Handle empty responses
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        return await response.json();
-      }
+      // const contentType = response.headers.get('content-type');
+      // if (contentType && contentType.includes('application/json')) {
+      // }
       
-      return {} as T;
+      const data = await response.json();
+      console.log("GOT: ", data);
+      
+      return data as T;
+      // return {} as T;
 
     } catch (error) {
       clearTimeout(timeoutId);

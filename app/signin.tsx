@@ -3,6 +3,8 @@ import {
   View,
   Text,
   StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   TextInput,
   TouchableOpacity,
@@ -49,7 +51,12 @@ export default function SignInScreen() {
           headerShown: false,
         }}
       />
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      >
+        <ScrollView contentContainerStyle={styles.contentContainer}>
         <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.push("/(public)")}>
             <ArrowLeft size={24} color={colors.text} />
@@ -108,7 +115,8 @@ export default function SignInScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </>
   );
 }
