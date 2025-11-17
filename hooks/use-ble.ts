@@ -18,8 +18,8 @@ const DEFAULT_CHAR_UUID_TX = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E";
 const DEFAULT_CHAR_UUID_RX = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E";
 
 // Standard BLE MTU sizes
-const MAX_MTU_SIZE = 247; // Maximum BLE 4.0+ MTU
-const DEFAULT_MTU_SIZE = 23; // Minimum BLE MTU
+const MAX_MTU_SIZE = 512; // Maximum BLE 4.0+ MTU
+const DEFAULT_MTU_SIZE = 512; // Minimum BLE MTU
 
 const bleManager = new BleManager();
 
@@ -433,7 +433,10 @@ function useBLE() {
                             if (error) {
                                 console.log("Monitor characteristic error:", error);
                                 console.log("Monitor error reason:", error.reason || "Unknown reason");
-                                reject(error);
+                                const errorMessage = error?.message || error?.reason || "BLE operation failed";
+                                const fixedError = new Error(errorMessage);
+                                (fixedError as any).code = error?.errorCode || "BLE_ERROR";
+                                reject(fixedError);
                             } else {
                                 onDataUpdate(error, characteristic);
                                 resolve();
