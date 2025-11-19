@@ -74,7 +74,7 @@ export class AuthService {
   /**
    * Logout and clear stored tokens
    */
-  async logout(): Promise<void> {14
+  async logout(): Promise<void> {
     // Clear stored tokens
     await tokenService.clearTokens();
     
@@ -119,7 +119,14 @@ export class AuthService {
     
     try {
       const refreshToken = await tokenService.getRefreshToken();
-      if (!refreshToken) {
+
+      console.log('Attempting token refresh:', {
+        hasRefreshToken: !!refreshToken,
+        refreshTokenLength: refreshToken ? refreshToken.length : 0
+      });
+
+      if (!refreshToken || refreshToken.trim() === '') {
+        console.error('No refresh token available for token refresh');
         throw new ApiError('No refresh token available', 401, 'NO_REFRESH_TOKEN');
       }
 
@@ -134,9 +141,11 @@ export class AuthService {
       await this.setToken(newToken);
       this.scheduleTokenRefresh();
 
+      console.log('Token refresh successful');
       return newToken;
     } catch (error) {
       // If refresh fails, clear tokens and throw
+      console.error('Token refresh failed:', error);
       await this.logout();
       throw error;
     } finally {
@@ -201,10 +210,27 @@ export class AuthService {
     const issuedAt = Math.floor(Date.now() / 1000);
     const expiresAt = issuedAt + expiresIn;
 
+    // Validate required fields
+    if (!token.access_token) {
+      throw new Error('Access token is required');
+    }
+
+    // Only store refresh token if it's actually provided
+    const refreshToken = token.refresh_token && token.refresh_token.trim() !== ''
+      ? token.refresh_token
+      : null;
+
+    console.log('Storing tokens:', {
+      hasAccessToken: !!token.access_token,
+      hasRefreshToken: !!refreshToken,
+      expiresIn,
+      expiresAt: new Date(expiresAt * 1000).toISOString()
+    });
+
     // Create token pair for secure storage
     const tokenPair: TokenPair = {
       accessToken: token.access_token,
-      refreshToken: token.refresh_token || '',
+      refreshToken: refreshToken || '',
       expiresAt,
       issuedAt,
     };

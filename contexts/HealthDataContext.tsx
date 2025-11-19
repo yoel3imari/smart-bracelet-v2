@@ -8,6 +8,12 @@ export interface HealthData {
   sleepHours: number;
   temperature: number;
   oxygenLevel: number;
+  fingerDetected: boolean;
+  sleeping: boolean;
+  activityKmh: number;
+  steps: number;
+  idleSeconds: number;
+  timestamp: number;
   lastUpdated: Date;
 }
 
@@ -16,6 +22,12 @@ export interface HistoricalData {
   heartRate: number;
   oxygenLevel: number;
   temperature: number;
+  fingerDetected: boolean;
+  sleeping: boolean;
+  activityKmh: number;
+  steps: number;
+  idleSeconds: number;
+  sleepHours: number;
 }
 
 export interface UserProfile {
@@ -36,6 +48,12 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
     sleepHours: 0,
     temperature: 0,
     oxygenLevel: 0,
+    fingerDetected: false,
+    sleeping: false,
+    activityKmh: 0,
+    steps: 0,
+    idleSeconds: 0,
+    timestamp: 0,
     lastUpdated: new Date(),
   });
 
@@ -65,9 +83,15 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
     if (bleSensorData && isConnected) {
       const newData: HealthData = {
         heartRate: bleSensorData.heartRate || 0,
-        sleepHours: 7.5, // Default value since BLE doesn't provide sleep data
+        sleepHours: bleSensorData.sleepHours || 0, // Now dynamic from device data
         temperature: bleSensorData.temperature || 0,
         oxygenLevel: bleSensorData.spo2 || 0,
+        fingerDetected: bleSensorData.fingerDetected || false,
+        sleeping: bleSensorData.sleeping || false,
+        activityKmh: bleSensorData.activityKmh || 0,
+        steps: bleSensorData.steps || 0,
+        idleSeconds: bleSensorData.idleSeconds || 0,
+        timestamp: bleSensorData.timestamp || Date.now(),
         lastUpdated: new Date(),
       };
 
@@ -81,6 +105,12 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
           heartRate: bleSensorData.heartRate || 0,
           oxygenLevel: bleSensorData.spo2 || 0,
           temperature: bleSensorData.temperature || 0,
+          fingerDetected: bleSensorData.fingerDetected || false,
+          sleeping: bleSensorData.sleeping || false,
+          activityKmh: bleSensorData.activityKmh || 0,
+          steps: bleSensorData.steps || 0,
+          idleSeconds: bleSensorData.idleSeconds || 0,
+          sleepHours: bleSensorData.sleepHours || 0,
         });
         
         // Keep only last 24 hours of data

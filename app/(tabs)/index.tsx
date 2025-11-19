@@ -9,18 +9,24 @@ import {
   Bike,
   Bluetooth,
   Droplet,
+  Fingerprint,
+  Footprints,
   Heart,
   HeartCrack,
   MoonStarIcon,
   RefreshCw,
   Thermometer,
-  User
+  Timer,
+  User,
+  Zap
 } from "lucide-react-native";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Animated,
   Dimensions,
+  Linking,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -44,7 +50,7 @@ export default function HomeScreen() {
     disconnectFromDevice,
     connectedDevice,
   } = useHealthData();
-  
+
   const {
     allDevices: devices,
     isScanning,
@@ -63,7 +69,7 @@ export default function HomeScreen() {
   const [hasScanError, setHasScanError] = useState(false);
   const [permissionChecked, setPermissionChecked] = useState(false);
 
-  // Start scanning when modal opens
+  // Start scanning when modal opens - only run once when modal becomes visible
   useEffect(() => {
     if (showDeviceModal && !isScanning && !hasScanError) {
       const initiateScan = async () => {
@@ -96,16 +102,16 @@ export default function HomeScreen() {
       };
       initiateScan();
     }
-  }, [showDeviceModal, isScanning, requestPermissions, startScan, hasScanError, checkBluetoothState]);
+  }, [showDeviceModal]); // Only depend on showDeviceModal to prevent infinite loops
 
   // Check permissions and Bluetooth state on app start
   useEffect(() => {
     const checkPermissionsOnStart = async () => {
       if (permissionChecked) return;
-      
+
       try {
         console.log("Checking Bluetooth and Location permissions...");
-        
+
         // Check Bluetooth state first
         const isBluetoothEnabled = await checkBluetoothState();
         if (!isBluetoothEnabled) {
@@ -114,7 +120,7 @@ export default function HomeScreen() {
         } else {
           console.log("Bluetooth is enabled");
         }
-        
+
         setPermissionChecked(true);
       } catch (error) {
         console.log("Error checking permissions on start:", error);
@@ -187,6 +193,26 @@ export default function HomeScreen() {
     outputRange: [1, 1.08],
   });
 
+  const openBluetoothSettings = async () => {
+    if (Platform.OS === 'android') {
+      // Opens directly to Bluetooth settings on Android
+      try {
+        await Linking.sendIntent('android.settings.BLUETOOTH_SETTINGS');
+      } catch (error) {
+        Alert.alert('Error', 'Cannot open Bluetooth settings');
+      }
+    } else {
+      // iOS: Opens App Settings (Safe for App Store)
+      // Users must navigate manually to Bluetooth from here if needed.
+      Linking.openSettings();
+
+      /* NOTE: You can use Linking.openURL('App-Prefs:Bluetooth') for a direct link, 
+      BUT using 'App-Prefs' is a private API and typically leads to 
+      App Store Rejection. Use only for internal/enterprise apps.
+      */
+    }
+  };
+
   return (
     <>
       <ScrollView
@@ -204,6 +230,22 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={styles.statusContainer}
               onPress={() => {
+                if (bluetoothState === 'PoweredOff') {
+                  Alert.alert(
+                    "Bluetooth required",
+                    "Please enable Bluetooth to connect to your device.",
+                    [
+                      {
+                        text: "Open Settings", onPress: async () => {
+                          // Open device Bluetooth settings
+                          // Note: This requires additional implementation depending on the platform
+                          await openBluetoothSettings();
+                        }
+                      }
+                    ]
+                  );
+                  return;
+                }
                 if (isConnected) {
                   Alert.alert(
                     "Disconnect Device",
@@ -222,24 +264,30 @@ export default function HomeScreen() {
                 }
               }}
             >
-              <Text style={styles.statusText}>
-                {isConnected ? "Connected" : "Tap to Connect"}
-              </Text>
-              {!isConnected && (
-                <Bluetooth
-                  size={16}
-                  color={colors.primary}
-                  style={styles.bluetoothIcon}
-                />
-              )}
+              {
+                bluetoothState === 'PoweredOff' ? (
+                  <View style={styles.permissionWarning}>
+                    <Text style={styles.permissionWarningText}>
+                      Activate Bluetooth
+                    </Text>
+                  </View>
+                ) : (
+                  <>
+                    <Text style={styles.statusText}>
+                      {isConnected ? "Connected" : "Tap to Connect"}
+                    </Text>
+                    {!isConnected && (
+                      <Bluetooth
+                        size={16}
+                        color={colors.primary}
+                        style={styles.bluetoothIcon}
+                      />
+                    )}
+                  </>
+                )
+              }
+
             </TouchableOpacity>
-            {!isConnected && bluetoothState === 'PoweredOff' && (
-              <View style={styles.permissionWarning}>
-                <Text style={styles.permissionWarningText}>
-                  Bluetooth Required
-                </Text>
-              </View>
-            )}
           </View>
           <View style={styles.headerRight}>
             {hasAlerts && (
@@ -322,14 +370,83 @@ export default function HomeScreen() {
             <View
               style={[styles.statIcon, { backgroundColor: colors.secondary }]}
             >
-              <MoonStarIcon size={24} color={colors.primary} />
+              <MoonStarIcon size={24} color={currentData.sleeping ? colors.primary : colors.textMuted} />
             </View>
-            <Text style={styles.statLabel}>Sleep</Text>
+            <Text style={styles.statLabel}>
+              {currentData.sleeping ? "Sleeping" : "Sleep Hours"}
+            </Text>
             <View style={styles.numUnitWrapper}>
               <Text style={styles.statValue}>
-                {currentData.sleepHours.toFixed(1)}
+                {currentData.sleeping ? "😴" : currentData.sleepHours.toFixed(1)}
               </Text>
-              <Text style={styles.statUnit}>Hours</Text>
+              <Text style={styles.statUnit}>
+                {currentData.sleeping ? "Status" : "Hours"}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.statCard}>
+            <View
+              style={[styles.statIcon, { backgroundColor: currentData.fingerDetected ? "#E8F8F5" : "#FFF5F5" }]}
+            >
+              <Fingerprint size={24} color={currentData.fingerDetected ? colors.success : colors.warning} />
+            </View>
+            <Text style={styles.statLabel}>Finger Detection</Text>
+            <View style={styles.numUnitWrapper}>
+              <Text style={[
+                styles.statValue,
+                { color: currentData.fingerDetected ? colors.success : colors.warning }
+              ]}>
+                {currentData.fingerDetected ? "✓" : "✗"}
+              </Text>
+              <Text style={styles.statUnit}>
+                {currentData.fingerDetected ? "Detected" : "Not Found"}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.statCard}>
+            <View
+              style={[styles.statIcon, { backgroundColor: currentData.activityKmh > 0 ? "#E8F8FF" : "#F5F5F5" }]}
+            >
+              <Zap size={24} color={currentData.activityKmh > 0 ? colors.primary : colors.textMuted} />
+            </View>
+            <Text style={styles.statLabel}>Activity Speed</Text>
+            <View style={styles.numUnitWrapper}>
+              <Text style={styles.statValue}>
+                {currentData.activityKmh.toFixed(1)}
+              </Text>
+              <Text style={styles.statUnit}>km/h</Text>
+            </View>
+          </View>
+
+          <View style={styles.statCard}>
+            <View
+              style={[styles.statIcon, { backgroundColor: "#FFF4E6" }]}
+            >
+              <Footprints size={24} color={colors.primary} />
+            </View>
+            <Text style={styles.statLabel}>Steps</Text>
+            <View style={styles.numUnitWrapper}>
+              <Text style={styles.statValue}>
+                {currentData.steps.toLocaleString()}
+              </Text>
+              <Text style={styles.statUnit}>steps</Text>
+            </View>
+          </View>
+
+          <View style={styles.statCard}>
+            <View
+              style={[styles.statIcon, { backgroundColor: "#FFE4E1" }]}
+            >
+              <Timer size={24} color={colors.warning} />
+            </View>
+            <Text style={styles.statLabel}>Idle Time</Text>
+            <View style={styles.numUnitWrapper}>
+              <Text style={styles.statValue}>
+                {Math.floor(currentData.idleSeconds / 60)}
+              </Text>
+              <Text style={styles.statUnit}>min</Text>
             </View>
           </View>
 
@@ -356,19 +473,6 @@ export default function HomeScreen() {
                 {Math.round(currentData.oxygenLevel)}
               </Text>
               <Text style={styles.statUnit}>%</Text>
-            </View>
-          </View>
-
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: "#ffe6e6ff" }]}>
-              <Bike size={24} color={colors.danger} />
-            </View>
-            <Text style={styles.statLabel}>Acceleration</Text>
-            <View style={styles.numUnitWrapper}>
-              <Text style={styles.statValue}>
-                {currentData.temperature.toFixed(1)}
-              </Text>
-              <Text style={styles.statUnit}>Km</Text>
             </View>
           </View>
         </View>
@@ -401,7 +505,7 @@ export default function HomeScreen() {
           </View>
         )}
       </ScrollView>
-      
+
       <DeviceModal
         visible={showDeviceModal}
         closeModal={() => setShowDeviceModal(false)}
@@ -682,9 +786,9 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   permissionWarning: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
+    // position: 'absolute',
+    // top: -8,
+    // right: -8,
     backgroundColor: colors.warning,
     borderRadius: 10,
     paddingHorizontal: 6,

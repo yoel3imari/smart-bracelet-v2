@@ -32,6 +32,8 @@ export default function SignInScreen() {
       return;
     }
 
+    console.log(formData);
+    
     const result = await signIn(formData.email, formData.password);
     
     if (result.success) {

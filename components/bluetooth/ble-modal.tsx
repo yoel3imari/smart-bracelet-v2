@@ -29,6 +29,7 @@ type DeviceModalProps = {
   checkAllPermissions?: () => Promise<{
     bluetoothEnabled: boolean;
     locationPermission: boolean;
+    locationServicesEnabled: boolean;
   }>;
   requestPermissions?: () => Promise<boolean>;
 };
@@ -69,9 +70,11 @@ export const DeviceModal: FC<DeviceModalProps> = (props) => {
   const [permissions, setPermissions] = useState<{
     bluetoothEnabled: boolean;
     locationPermission: boolean;
+    locationServicesEnabled: boolean;
   }>({
     bluetoothEnabled: false,
-    locationPermission: false
+    locationPermission: false,
+    locationServicesEnabled: false
   });
   const [permissionsChecked, setPermissionsChecked] = useState(false);
 
@@ -139,7 +142,8 @@ export const DeviceModal: FC<DeviceModalProps> = (props) => {
           if (isMounted) {
             setPermissions({
               bluetoothEnabled: true,
-              locationPermission: true
+              locationPermission: true,
+              locationServicesEnabled: true
             });
             setPermissionsChecked(true);
             console.log("BLE Modal: permissionsChecked set to true (default permissions)");
@@ -168,6 +172,8 @@ export const DeviceModal: FC<DeviceModalProps> = (props) => {
       return "Bluetooth Required";
     } else if (!permissions.locationPermission) {
       return "Location Permission Required";
+    } else if (!permissions.locationServicesEnabled) {
+      return "Location Services Required";
     } else if (bluetoothState === 'PoweredOff') {
       return "Bluetooth is Disabled";
     } else if (isScanning) {
@@ -243,6 +249,26 @@ export const DeviceModal: FC<DeviceModalProps> = (props) => {
       );
     }
 
+    // Show location services disabled message
+    if (!permissions.locationServicesEnabled) {
+      return (
+        <View style={modalStyle.errorContainer}>
+          <Text style={modalStyle.errorText}>
+            Location services are required to scan for nearby Bluetooth devices.
+          </Text>
+          <Text style={[modalStyle.errorText, modalStyle.instructionText]}>
+            On Android devices, Bluetooth scanning requires location services to be enabled, even when location permission is granted.
+          </Text>
+          <TouchableOpacity
+            style={[modalStyle.ctaButton, modalStyle.permissionButton]}
+            onPress={openSettings}
+          >
+            <Text style={modalStyle.ctaButtonText}>Enable Location Services</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
     // Show Bluetooth powered off message
     if (bluetoothState === 'PoweredOff') {
       return (
@@ -295,7 +321,7 @@ export const DeviceModal: FC<DeviceModalProps> = (props) => {
             style={[modalStyle.ctaButton, modalStyle.stopButton]}
           >
             <Text style={modalStyle.ctaButtonText}>
-              {(!permissions.bluetoothEnabled || !permissions.locationPermission || bluetoothState === 'PoweredOff') ? 'Close' : (isScanning ? "Stop Scan & Close" : "Close")}
+              {(!permissions.bluetoothEnabled || !permissions.locationPermission || !permissions.locationServicesEnabled || bluetoothState === 'PoweredOff') ? 'Close' : (isScanning ? "Stop Scan & Close" : "Close")}
             </Text>
           </TouchableOpacity>
         </View>

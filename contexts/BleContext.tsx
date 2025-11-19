@@ -10,14 +10,20 @@ export interface BleState {
     heartRate: number;
     spo2: number;
     temperature: number;
-    acceleration: { x: number; y: number; z: number };
-    gyroscope: { x: number; y: number; z: number };
+    fingerDetected: boolean;
+    sleepHours: number;
+    sleeping: boolean;
+    activityKmh: number;
+    steps: number;
+    idleSeconds: number;
+    timestamp: number;
   };
   isScanning: boolean;
   isConnected: boolean;
   connectionError: string | null;
   bluetoothState: string;
   hasLocationPermission: boolean;
+  locationServicesEnabled: boolean;
 }
 
 export interface BleActions {
@@ -30,6 +36,7 @@ export interface BleActions {
   checkAllPermissions: () => Promise<{
     bluetoothEnabled: boolean;
     locationPermission: boolean;
+    locationServicesEnabled: boolean;
   }>;
   checkLocationPermission: () => Promise<boolean>;
 }
@@ -42,6 +49,7 @@ export const [BleProvider, useBle] = createContextHook(() => {
     isScanning,
     bluetoothState,
     hasLocationPermission,
+    locationServicesEnabled,
     connectToDevice,
     requestPermissions,
     scanForPeripherals,
@@ -87,7 +95,8 @@ export const [BleProvider, useBle] = createContextHook(() => {
     connectionError,
     bluetoothState,
     hasLocationPermission,
-  }), [allDevices, connectedDevice, sensorData, isScanning, connectionError, bluetoothState, hasLocationPermission]);
+    locationServicesEnabled,
+  }), [allDevices, connectedDevice, sensorData, isScanning, connectionError, bluetoothState, hasLocationPermission, locationServicesEnabled]);
 
   const actions: BleActions = useMemo(() => ({
     connectToDevice: handleConnectToDevice,

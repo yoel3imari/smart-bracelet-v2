@@ -8,11 +8,11 @@ export interface ApiConfig {
 }
 
 export interface ApiErrorResponse {
-  detail?: Array<{
+  detail?: {
     loc: (string | number)[];
     msg: string;
     type: string;
-  }>;
+  }[] | string;
   message?: string;
 }
 
@@ -127,6 +127,11 @@ export class ApiService {
 
     try {
       console.log(options.method + " => " + url);
+      //console.log("Headers: ", headers);
+      if (options.body) {
+        console.log("Body: ", options.body);
+      }
+      
       
       const response = await fetch(url, {
         ...options,
@@ -241,7 +246,7 @@ export class ApiService {
     return this.request<T>(endpoint, {
       ...options,
       method: 'POST',
-      body: data ? (typeof data === 'string' ? data : JSON.stringify(data)) : undefined,
+      body: data ? (typeof data === 'string' ? data : data instanceof URLSearchParams ? data.toString() : JSON.stringify(data)) : undefined,
     });
   }
 

@@ -1,0 +1,572 @@
+{
+  "testReport": {
+    "timestamp": "2025-11-19T12:35:36.938Z",
+    "tests": [
+      {
+        "name": "Complete Data Flow",
+        "success": true,
+        "result": {
+          "success": true,
+          "totalTime": 0.4174629999999979,
+          "details": {
+            "deviceData": {
+              "heartRate": 72,
+              "spo2": 98,
+              "temperature": 37.2,
+              "fingerDetected": true,
+              "sleepHours": 7.5,
+              "sleeping": false,
+              "activityKmh": 3.2,
+              "steps": 42,
+              "timestamp": 123456,
+              "idleSeconds": 45
+            },
+            "bleProcessedData": {
+              "heartRate": 72,
+              "spo2": 98,
+              "temperature": 37.2,
+              "fingerDetected": true,
+              "sleepHours": 7.5,
+              "sleeping": false,
+              "activityKmh": 3.2,
+              "steps": 42,
+              "timestamp": 123456,
+              "idleSeconds": 45
+            },
+            "healthData": {
+              "heartRate": 72,
+              "sleepHours": 7.5,
+              "temperature": 37.2,
+              "oxygenLevel": 98,
+              "fingerDetected": true,
+              "sleeping": false,
+              "activityKmh": 3.2,
+              "steps": 42,
+              "idleSeconds": 45,
+              "timestamp": 123456,
+              "lastUpdated": "2025-11-19T12:35:36.946Z"
+            },
+            "metricsData": {
+              "heartRate": 72,
+              "oxygenLevel": 98,
+              "temperature": 37.2,
+              "sleepHours": 7.5,
+              "timestamp": "2025-11-19T12:35:36.946Z"
+            }
+          }
+        },
+        "timestamp": "2025-11-19T12:35:36.947Z"
+      },
+      {
+        "name": "Historical Data Management",
+        "success": true,
+        "result": {
+          "success": true,
+          "originalCount": 1500,
+          "filteredCount": 1000,
+          "processingTime": 9.086106000000001
+        },
+        "timestamp": "2025-11-19T12:35:36.956Z"
+      },
+      {
+        "name": "Error Handling",
+        "success": true,
+        "result": {
+          "success": true,
+          "errors": [],
+          "testResults": {
+            "missingFields": {
+              "isValid": false,
+              "errors": [
+                "temperature is missing",
+                "fingerDetected is missing",
+                "sleepHours is missing",
+                "sleeping is missing",
+                "activityKmh is missing",
+                "steps is missing",
+                "timestamp is missing",
+                "idleSeconds is missing",
+                "fingerDetected must be boolean",
+                "sleeping must be boolean"
+              ],
+              "warnings": []
+            },
+            "invalidTypes": {
+              "isValid": false,
+              "errors": [
+                "fingerDetected must be boolean"
+              ],
+              "warnings": []
+            },
+            "extremeValues": {
+              "isValid": false,
+              "errors": [
+                "heartRate 300 is outside valid range (0-220)",
+                "spo2 150 is outside valid range (0-100)",
+                "sleepHours 48 exceeds 24 hours"
+              ],
+              "warnings": [
+                "temperature 50 seems unusual (normal: 36-37.5°C)",
+                "activityKmh 100 seems unusually high"
+              ]
+            },
+            "malformedJson": {
+              "success": false,
+              "error": "Invalid CSV format",
+              "processingTime": 0.9309989999999999
+            }
+          }
+        },
+        "timestamp": "2025-11-19T12:35:36.959Z"
+      },
+      {
+        "name": "Performance Test",
+        "success": true,
+        "result": {
+          "success": true,
+          "iterations": 100,
+          "avgTime": 0.004387120000000095,
+          "maxTime": 0.11593399999999576,
+          "minTime": 0.0012140000000044893,
+          "successRate": 1
+        },
+        "timestamp": "2025-11-19T12:35:36.962Z"
+      }
+    ],
+    "performance": [
+      {
+        "operation": "dataProcessing",
+        "time": 0.01541000000000281
+      },
+      {
+        "operation": "completeDataFlow",
+        "time": 0.4174629999999979
+      },
+      {
+        "operation": "historicalDataManagement",
+        "time": 9.086106000000001,
+        "originalEntries": 1500,
+        "filteredEntries": 1000
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.01430899999999724
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.008623999999997523
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.007776999999990153
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.007638000000000034
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.007355999999987262
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.00716099999999642
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.00783200000000761
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.014961999999997033
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0056960000000003674
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0012380000000007385
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.002447999999986905
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0009810000000101127
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0008879999999891197
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0007189999999894781
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006610000000080163
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.001033000000006723
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006720000000086657
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.002490000000008763
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0011910000000057153
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0009319999999917172
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.000789000000011697
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006540000000114787
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006409999999874572
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006860000000017408
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006339999999909196
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006220000000070058
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006699999999995043
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006340000000051305
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006220000000070058
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006340000000051305
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006109999999921456
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006390000000067175
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006539999999972679
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006369999999975562
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006220000000070058
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006450000000057798
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006680000000045538
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006150000000104683
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.000641000000001668
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006559999999922184
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0033130000000056725
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006360000000000809
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006280000000060681
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006429999999966185
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006289999999893325
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0032240000000030022
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006249999999994316
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006290000000035434
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.003652000000002431
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0007379999999983511
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006769999999960419
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006259999999969068
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006230000000044811
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0008320000000026084
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0024269999999972924
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0011080000000021073
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006889999999941665
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006360000000000809
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006259999999969068
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.000686999999999216
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006529999999997926
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.000686999999999216
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006350000000026057
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006100000000088812
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0007170000000087384
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006190000000003693
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0005979999999965457
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006479999999982056
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006439999999940937
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006929999999982783
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006000000000057071
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.000660000000010541
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006460000000032551
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006139999999987822
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006350000000026057
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006170000000054188
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006259999999969068
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006120000000038317
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006199999999978445
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006580000000013797
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006470000000007303
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006460000000032551
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.000626999999994382
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006369999999975562
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.000626999999994382
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006079999999997199
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006989999999973406
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006539999999972679
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006249999999994316
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006350000000026057
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006509999999906313
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006330000000076552
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0012270000000000891
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006079999999997199
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006309999999984939
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006190000000003693
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006360000000000809
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006309999999984939
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006409999999874572
+      },
+      {
+        "operation": "dataProcessing",
+        "time": 0.0006089999999971951
+      },
+      {
+        "operation": "performanceTest",
+        "iterations": 100,
+        "avgTime": 0.004387120000000095,
+        "maxTime": 0.11593399999999576,
+        "minTime": 0.0012140000000044893,
+        "successRate": 1
+      }
+    ],
+    "summary": {
+      "totalTests": 4,
+      "passedTests": 4,
+      "failedTests": 0
+    }
+  },
+  "timestamp": "2025-11-19T12:35:36.965Z",
+  "environment": {
+    "nodeVersion": "v22.11.0",
+    "platform": "darwin",
+    "arch": "x64"
+  }
+}
