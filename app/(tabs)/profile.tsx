@@ -258,22 +258,22 @@ export default function ProfileScreen() {
                   <Text style={styles.sectionTitle}>Device Status</Text>
                   <View style={styles.statusGrid}>
                     <View style={styles.statusCard}>
-                      <View style={[styles.statusIcon, { backgroundColor: currentData.fingerDetected ? "#E8F8F5" : "#FFF5F5" }]}>
-                        <Fingerprint size={20} color={currentData.fingerDetected ? colors.success : colors.warning} />
+                      <View style={[styles.statusIcon, { backgroundColor: currentData?.fingerDetected ? "#E8F8F5" : "#FFF5F5" }]}>
+                        <Fingerprint size={20} color={currentData?.fingerDetected ? colors.success : colors.warning} />
                       </View>
                       <Text style={styles.statusLabel}>Finger Detection</Text>
-                      <Text style={[styles.statusValue, { color: currentData.fingerDetected ? colors.success : colors.warning }]}>
-                        {currentData.fingerDetected ? "Detected" : "Not Found"}
+                      <Text style={[styles.statusValue, { color: currentData?.fingerDetected ? colors.success : colors.warning }]}>
+                        {currentData?.fingerDetected ? "Detected" : "Not Found"}
                       </Text>
                     </View>
 
                     <View style={styles.statusCard}>
-                      <View style={[styles.statusIcon, { backgroundColor: currentData.sleeping ? "#E8E8FF" : "#F5F5F5" }]}>
-                        <Moon size={20} color={currentData.sleeping ? colors.secondary : colors.textMuted} />
+                      <View style={[styles.statusIcon, { backgroundColor: currentData?.sleeping ? "#E8E8FF" : "#F5F5F5" }]}>
+                        <Moon size={20} color={currentData?.sleeping ? colors.secondary : colors.textMuted} />
                       </View>
                       <Text style={styles.statusLabel}>Sleep Status</Text>
-                      <Text style={[styles.statusValue, { color: currentData.sleeping ? colors.secondary : colors.text }]}>
-                        {currentData.sleeping ? "Sleeping" : "Awake"}
+                      <Text style={[styles.statusValue, { color: currentData?.sleeping ? colors.secondary : colors.text }]}>
+                        {currentData?.sleeping ? "Sleeping" : "Awake"}
                       </Text>
                     </View>
                   </View>
@@ -287,7 +287,7 @@ export default function ProfileScreen() {
                         <Zap size={20} color={colors.primary} />
                       </View>
                       <Text style={styles.summaryLabel}>Current Speed</Text>
-                      <Text style={styles.summaryValue}>{currentData.activityKmh.toFixed(1)} km/h</Text>
+                      <Text style={styles.summaryValue}>{(currentData?.activityKmh || 0).toFixed(1)} km/h</Text>
                     </View>
 
                     <View style={styles.summaryCard}>
@@ -295,7 +295,7 @@ export default function ProfileScreen() {
                         <Footprints size={20} color={colors.success} />
                       </View>
                       <Text style={styles.summaryLabel}>Total Steps</Text>
-                      <Text style={styles.summaryValue}>{currentData.steps.toLocaleString()}</Text>
+                      <Text style={styles.summaryValue}>{(currentData?.steps || 0).toLocaleString()}</Text>
                     </View>
 
                     <View style={styles.summaryCard}>
@@ -303,7 +303,7 @@ export default function ProfileScreen() {
                         <Timer size={20} color={colors.warning} />
                       </View>
                       <Text style={styles.summaryLabel}>Idle Time</Text>
-                      <Text style={styles.summaryValue}>{Math.floor(currentData.idleSeconds / 60)} min</Text>
+                      <Text style={styles.summaryValue}>{Math.floor((currentData?.idleSeconds || 0) / 60)} min</Text>
                     </View>
                   </View>
                 </View>
@@ -311,29 +311,29 @@ export default function ProfileScreen() {
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Sleep Summary</Text>
                   <View style={styles.sleepCard}>
-                    <View style={styles.sleepHeader}>
-                      <Moon size={24} color={currentData.sleeping ? colors.secondary : colors.primary} />
-                      <Text style={styles.sleepTitle}>
-                        {currentData.sleeping ? "Currently Sleeping" : "Sleep Tracking"}
-                      </Text>
-                    </View>
-                    <View style={styles.sleepStats}>
-                      <View style={styles.sleepStat}>
-                        <Text style={styles.sleepStatValue}>
-                          {currentData.sleeping ? "😴" : currentData.sleepHours.toFixed(1)}
-                        </Text>
-                        <Text style={styles.sleepStatLabel}>
-                          {currentData.sleeping ? "Status" : "Hours Today"}
-                        </Text>
-                      </View>
-                      <View style={styles.sleepStat}>
-                        <Text style={styles.sleepStatValue}>
-                          {currentData.sleeping ? "Deep" : "Active"}
-                        </Text>
-                        <Text style={styles.sleepStatLabel}>State</Text>
-                      </View>
-                    </View>
-                  </View>
+                   <View style={styles.sleepHeader}>
+                     <Moon size={24} color={currentData?.sleeping ? colors.secondary : colors.primary} />
+                     <Text style={styles.sleepTitle}>
+                       {currentData?.sleeping ? "Currently Sleeping" : "Sleep Tracking"}
+                     </Text>
+                   </View>
+                   <View style={styles.sleepStats}>
+                     <View style={styles.sleepStat}>
+                       <Text style={styles.sleepStatValue}>
+                         {currentData?.sleeping ? "😴" : (currentData?.sleepHours || 0).toFixed(1)}
+                       </Text>
+                       <Text style={styles.sleepStatLabel}>
+                         {currentData?.sleeping ? "Status" : "Hours Today"}
+                       </Text>
+                     </View>
+                     <View style={styles.sleepStat}>
+                       <Text style={styles.sleepStatValue}>
+                         {currentData?.sleeping ? "Deep" : "Active"}
+                       </Text>
+                       <Text style={styles.sleepStatLabel}>State</Text>
+                     </View>
+                   </View>
+                 </View>
                 </View>
               </>
             )}

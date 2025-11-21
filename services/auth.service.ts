@@ -1,6 +1,7 @@
 import { ApiError, apiService, setAuthToken } from './api';
 import { tokenManagerService, TokenValidationCallbacks } from './token-manager.service';
 import { DecodedToken, TokenPair, tokenService } from './token.service';
+import { userService } from './user.service';
 
 export interface Token {
   access_token: string;
@@ -93,10 +94,15 @@ export class AuthService {
   }
 
   /**
-   * Check if user is authenticated
+   * Check if user is authenticated using backend validation
    */
   async isAuthenticated(): Promise<boolean> {
-    return await tokenService.isAuthenticated();
+    try {
+      return await this.validateTokenWithBackend();
+    } catch (error) {
+      console.error('Error checking authentication:', error);
+      return false;
+    }
   }
 
   /**
@@ -156,25 +162,28 @@ export class AuthService {
 
   /**
    * Validate current token and refresh if needed
+   * Uses backend validation by calling /api/v1/users/me endpoint
+   * No longer uses local expiration checks
    */
   async validateToken(): Promise<boolean> {
     try {
-      const isExpired = await tokenService.isTokenExpired();
+      // Always validate with backend first
+      const isValid = await this.validateTokenWithBackend();
       
-      if (isExpired) {
-        // Token is expired, try to refresh
-        try {
-          await this.refreshToken();
-          return true;
-        } catch (refreshError) {
-          // Refresh failed, user needs to login again
-          await this.logout();
-          return false;
-        }
+      if (isValid) {
+        return true;
       }
-
-      // Token is valid
-      return true;
+      
+      // If backend validation fails, try to refresh token
+      try {
+        await this.refreshToken();
+        // After refresh, validate with backend again
+        return await this.validateTokenWithBackend();
+      } catch (refreshError) {
+        // Refresh failed, user needs to login again
+        await this.logout();
+        return false;
+      }
     } catch (error) {
       console.error('Error validating token:', error);
       await this.logout();
@@ -183,21 +192,38 @@ export class AuthService {
   }
 
   /**
+   * Validate token with backend by calling /api/v1/users/me
+   * This ensures the token is actually valid on the server side
+   */
+  private async validateTokenWithBackend(): Promise<boolean> {
+    try {
+      // Call the /api/v1/users/me endpoint which requires valid authentication
+      await userService.getCurrentUser();
+      return true;
+    } catch (error) {
+      // If backend returns 401, token is invalid
+      if (error instanceof ApiError && error.status === 401) {
+        console.log('Backend token validation failed: Token is invalid (401)');
+        return false;
+      }
+      
+      // Log other errors but don't consider them authentication failures
+      console.warn('Backend validation failed with non-401 error:', error);
+      
+      // For other errors (network issues, server errors), we might want to be more lenient
+      // and allow the token to be considered valid temporarily
+      // This prevents logging out users due to temporary network issues
+      return true;
+    }
+  }
+
+  /**
    * Get access token, refreshing if necessary
+   * No longer uses local expiration checks - relies on backend validation
    */
   async getAccessToken(): Promise<string | null> {
-    // Check if token is expired or expiring soon
-    const isExpiringSoon = await tokenService.isTokenExpiringSoon();
-    
-    if (isExpiringSoon) {
-      try {
-        await this.refreshToken();
-      } catch (error) {
-        console.error('Failed to refresh token:', error);
-        return null;
-      }
-    }
-
+    // Always try to get the current access token
+    // Token refresh will be handled by validateToken when needed
     return await tokenService.getAccessToken();
   }
 

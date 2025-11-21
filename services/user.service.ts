@@ -227,13 +227,19 @@ export class UserService {
 
   /**
    * Get current user (requires authentication)
+   * Uses the /api/v1/users/me endpoint for backend token validation
    */
   async getCurrentUser(): Promise<User> {
     try {
-      // This endpoint might not exist in the current API, but it's a common pattern
-      // For now, we'll use the users endpoint with a special ID or implement later
-      throw new ApiError('Get current user not implemented', 501, 'NOT_IMPLEMENTED');
+      return await apiService.get<User>('/api/v1/users/me');
     } catch (error) {
+      // If it's a 401 error, just re-throw it as-is - don't create a new error
+      if (error instanceof ApiError && error.status === 401) {
+        throw error; // Re-throw the original 401 error
+      }
+      if (error instanceof ApiError && error.status === 404) {
+        throw new ApiError('User not found', 404, 'USER_NOT_FOUND');
+      }
       throw error;
     }
   }

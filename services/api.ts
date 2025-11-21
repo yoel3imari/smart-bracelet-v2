@@ -88,23 +88,10 @@ export class ApiService {
     let currentAuthToken = authToken;
     
     // If we have an auth token and this is not a retry after auth refresh,
-    // ensure it's valid before making the request
+    // just use it - backend will validate it
     if (currentAuthToken && !isRetryAfterAuth && tokenManagerService.isInitialized()) {
-      try {
-        const isValid = await tokenManagerService.validateToken();
-        if (!isValid) {
-          throw new ApiError('Authentication required', 401, 'AUTH_REQUIRED');
-        }
-        
-        // Get the latest token after validation (might have been refreshed)
-        currentAuthToken = await tokenManagerService.getAccessToken();
-      } catch (error) {
-        // If token validation fails, clear auth and re-throw
-        if (error instanceof ApiError && error.status === 401) {
-          await tokenManagerService.logout();
-        }
-        throw error;
-      }
+      // Token exists, backend will validate it
+      // No need to pre-validate on client side
     }
 
     const headers: Record<string, string> = {

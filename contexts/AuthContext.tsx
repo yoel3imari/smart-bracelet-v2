@@ -29,16 +29,11 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     isInitialized: false,
   });
 
-  // Load stored user and initialize authentication on app start
-  useEffect(() => {
-    initializeAuth();
-  }, []);
-
   const initializeAuth = useCallback(async () => {
     try {
       // Initialize authentication service
       const isAuthenticated = await authService.initialize();
-      
+      console.log("AuthService initialized, isAuthenticated:", isAuthenticated);
       if (isAuthenticated) {
         // Get user info from token
         const userInfo = await authService.getUserInfo();
@@ -89,6 +84,11 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         isInitialized: true,
       });
     }
+  }, []);
+
+  // Load stored user and initialize authentication on app start
+  useEffect(() => {
+    initializeAuth();
   }, []);
 
   const loadStoredUser = useCallback(async (): Promise<User | null> => {
@@ -295,20 +295,21 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     try {
       if (!authState.user) return;
 
-      // Validate token and refresh if needed
+      // Validate token and refresh if needed using backend validation
       const isValid = await authService.validateToken();
       if (!isValid) {
         await signOut();
         return;
       }
 
-      // Get updated user info from token
-      const userInfo = await authService.getUserInfo();
-      if (userInfo && authState.user) {
+      // Get updated user info from backend
+      try {
+        const currentUser = await userService.getCurrentUser();
         const updatedUser = {
           ...authState.user,
-          email: userInfo.email,
-          // Add other fields that might be updated in the token
+          email: currentUser.email || authState.user.email,
+          name: currentUser.name || authState.user.name,
+          // Add other fields from backend response
         };
         
         await storeUser(updatedUser);
@@ -316,6 +317,22 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           ...prev,
           user: updatedUser,
         }));
+      } catch (error) {
+        console.error('Error fetching current user from backend:', error);
+        // Fallback to token info if backend call fails
+        const userInfo = await authService.getUserInfo();
+        if (userInfo && authState.user) {
+          const updatedUser = {
+            ...authState.user,
+            email: userInfo.email,
+          };
+          
+          await storeUser(updatedUser);
+          setAuthState(prev => ({
+            ...prev,
+            user: updatedUser,
+          }));
+        }
       }
     } catch (error) {
       console.error('Error refreshing user data:', error);

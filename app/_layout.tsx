@@ -42,12 +42,17 @@ function RootLayoutNav() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      {isAuthenticated && <Stack.Screen name="(tabs)" />}
-      {!isAuthenticated && <Stack.Screen name="(public)" />}
-      {/* Show verification prompt for authenticated but unverified users */}
-      {isAuthenticated && user && !user.emailVerified && <VerificationPrompt />}
-    </Stack>
+    <>
+      <Stack screenOptions={{ headerShown: false }}>
+        {isAuthenticated && <Stack.Screen name="(tabs)" />}
+        {!isAuthenticated && <Stack.Screen name="(public)" />}
+      </Stack>
+
+      {/* ✔ Now allowed because it's outside the Stack but inside the layout tree */}
+      {isAuthenticated && user && !user.emailVerified && (
+        <VerificationPrompt />
+      )}
+    </>
   );
 }
 

@@ -8,13 +8,13 @@ export interface HealthData {
   sleepHours: number;
   temperature: number;
   oxygenLevel: number;
-  fingerDetected: boolean;
-  sleeping: boolean;
-  activityKmh: number;
   steps: number;
-  idleSeconds: number;
   timestamp: number;
   lastUpdated: Date;
+  activityKmh: number;
+  fingerDetected: boolean;
+  sleeping: boolean;
+  idleSeconds: number;
 }
 
 export interface HistoricalData {
@@ -22,11 +22,7 @@ export interface HistoricalData {
   heartRate: number;
   oxygenLevel: number;
   temperature: number;
-  fingerDetected: boolean;
-  sleeping: boolean;
-  activityKmh: number;
   steps: number;
-  idleSeconds: number;
   sleepHours: number;
 }
 
@@ -48,13 +44,13 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
     sleepHours: 0,
     temperature: 0,
     oxygenLevel: 0,
-    fingerDetected: false,
-    sleeping: false,
-    activityKmh: 0,
     steps: 0,
-    idleSeconds: 0,
     timestamp: 0,
     lastUpdated: new Date(),
+    activityKmh: 0,
+    fingerDetected: false,
+    sleeping: false,
+    idleSeconds: 0,
   });
 
   const [historicalData, setHistoricalData] = useState<HistoricalData[]>([]);
@@ -86,13 +82,13 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
         sleepHours: bleSensorData.sleepHours || 0, // Now dynamic from device data
         temperature: bleSensorData.temperature || 0,
         oxygenLevel: bleSensorData.spo2 || 0,
-        fingerDetected: bleSensorData.fingerDetected || false,
-        sleeping: bleSensorData.sleeping || false,
-        activityKmh: bleSensorData.activityKmh || 0,
         steps: bleSensorData.steps || 0,
-        idleSeconds: bleSensorData.idleSeconds || 0,
         timestamp: bleSensorData.timestamp || Date.now(),
         lastUpdated: new Date(),
+        activityKmh: 0, // Default value, should be calculated from device data
+        fingerDetected: false, // Default value, should come from device data
+        sleeping: false, // Default value, should come from device data
+        idleSeconds: 0, // Default value, should come from device data
       };
 
       setCurrentData(newData);
@@ -105,11 +101,7 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
           heartRate: bleSensorData.heartRate || 0,
           oxygenLevel: bleSensorData.spo2 || 0,
           temperature: bleSensorData.temperature || 0,
-          fingerDetected: bleSensorData.fingerDetected || false,
-          sleeping: bleSensorData.sleeping || false,
-          activityKmh: bleSensorData.activityKmh || 0,
           steps: bleSensorData.steps || 0,
-          idleSeconds: bleSensorData.idleSeconds || 0,
           sleepHours: bleSensorData.sleepHours || 0,
         });
         

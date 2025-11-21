@@ -10,12 +10,8 @@ export interface BleState {
     heartRate: number;
     spo2: number;
     temperature: number;
-    fingerDetected: boolean;
     sleepHours: number;
-    sleeping: boolean;
-    activityKmh: number;
     steps: number;
-    idleSeconds: number;
     timestamp: number;
   };
   isScanning: boolean;

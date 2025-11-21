@@ -9,16 +9,12 @@ import {
   Bike,
   Bluetooth,
   Droplet,
-  Fingerprint,
   Footprints,
   Heart,
   HeartCrack,
-  MoonStarIcon,
   RefreshCw,
   Thermometer,
-  Timer,
-  User,
-  Zap
+  User
 } from "lucide-react-native";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -368,60 +364,6 @@ export default function HomeScreen() {
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
             <View
-              style={[styles.statIcon, { backgroundColor: colors.secondary }]}
-            >
-              <MoonStarIcon size={24} color={currentData.sleeping ? colors.primary : colors.textMuted} />
-            </View>
-            <Text style={styles.statLabel}>
-              {currentData.sleeping ? "Sleeping" : "Sleep Hours"}
-            </Text>
-            <View style={styles.numUnitWrapper}>
-              <Text style={styles.statValue}>
-                {currentData.sleeping ? "😴" : currentData.sleepHours.toFixed(1)}
-              </Text>
-              <Text style={styles.statUnit}>
-                {currentData.sleeping ? "Status" : "Hours"}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.statCard}>
-            <View
-              style={[styles.statIcon, { backgroundColor: currentData.fingerDetected ? "#E8F8F5" : "#FFF5F5" }]}
-            >
-              <Fingerprint size={24} color={currentData.fingerDetected ? colors.success : colors.warning} />
-            </View>
-            <Text style={styles.statLabel}>Finger Detection</Text>
-            <View style={styles.numUnitWrapper}>
-              <Text style={[
-                styles.statValue,
-                { color: currentData.fingerDetected ? colors.success : colors.warning }
-              ]}>
-                {currentData.fingerDetected ? "✓" : "✗"}
-              </Text>
-              <Text style={styles.statUnit}>
-                {currentData.fingerDetected ? "Detected" : "Not Found"}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.statCard}>
-            <View
-              style={[styles.statIcon, { backgroundColor: currentData.activityKmh > 0 ? "#E8F8FF" : "#F5F5F5" }]}
-            >
-              <Zap size={24} color={currentData.activityKmh > 0 ? colors.primary : colors.textMuted} />
-            </View>
-            <Text style={styles.statLabel}>Activity Speed</Text>
-            <View style={styles.numUnitWrapper}>
-              <Text style={styles.statValue}>
-                {currentData.activityKmh.toFixed(1)}
-              </Text>
-              <Text style={styles.statUnit}>km/h</Text>
-            </View>
-          </View>
-
-          <View style={styles.statCard}>
-            <View
               style={[styles.statIcon, { backgroundColor: "#FFF4E6" }]}
             >
               <Footprints size={24} color={colors.primary} />
@@ -432,21 +374,6 @@ export default function HomeScreen() {
                 {currentData.steps.toLocaleString()}
               </Text>
               <Text style={styles.statUnit}>steps</Text>
-            </View>
-          </View>
-
-          <View style={styles.statCard}>
-            <View
-              style={[styles.statIcon, { backgroundColor: "#FFE4E1" }]}
-            >
-              <Timer size={24} color={colors.warning} />
-            </View>
-            <Text style={styles.statLabel}>Idle Time</Text>
-            <View style={styles.numUnitWrapper}>
-              <Text style={styles.statValue}>
-                {Math.floor(currentData.idleSeconds / 60)}
-              </Text>
-              <Text style={styles.statUnit}>min</Text>
             </View>
           </View>
 

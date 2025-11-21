@@ -250,6 +250,9 @@ export default function PublicHomeScreen() {
                     "Please enable Bluetooth to connect to your device.",
                     [
                       {
+                        text: "Cancel", style: "cancel", onPress: () => {return;}
+                      },
+                      {
                         text: "Open Settings", onPress: async () => {
                           // Open device Bluetooth settings
                           // Note: This requires additional implementation depending on the platform

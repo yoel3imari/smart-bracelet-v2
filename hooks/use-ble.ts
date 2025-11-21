@@ -30,12 +30,8 @@ function useBLE() {
         heartRate: 0,
         spo2: 0,
         temperature: 0,
-        fingerDetected: false,
         sleepHours: 0,
-        sleeping: false,
-        activityKmh: 0,
         steps: 0,
-        idleSeconds: 0,
         timestamp: 0
     });
     const [isScanning, setIsScanning] = useState(false);
@@ -407,13 +403,9 @@ function useBLE() {
                     heartRate: 0,
                     spo2: 0,
                     temperature: 0,
-                    fingerDetected: false,
                     sleepHours: 0,
-                    sleeping: false,
-                    activityKmh: 0,
                     steps: 0,
-                    timestamp: 0,
-                    idleSeconds: 0
+                    timestamp: 0
                 });
                 setDiscoveredServices([]);
                 setDiscoveredCharacteristics([]);
@@ -455,13 +447,9 @@ function useBLE() {
                     heartRate: parsedData.heartRate,
                     spo2: parsedData.spo2,
                     temperature: parsedData.temperature,
-                    fingerDetected: parsedData.fingerDetected,
                     sleepHours: parsedData.sleepHours,
-                    sleeping: parsedData.sleeping,
-                    activityKmh: parsedData.activityKmh,
                     steps: parsedData.steps,
-                    timestamp: parsedData.timestamp,
-                    idleSeconds: parsedData.idleSeconds
+                    timestamp: parsedData.timestamp
                 });
 
                 // Update state with parsed data (new format)
@@ -469,13 +457,9 @@ function useBLE() {
                     heartRate: parsedData.heartRate || 0,
                     spo2: parsedData.spo2 || 0,
                     temperature: parsedData.temperature || 0,
-                    fingerDetected: parsedData.fingerDetected || false,
                     sleepHours: parsedData.sleepHours || 0,
-                    sleeping: parsedData.sleeping || false,
-                    activityKmh: parsedData.activityKmh || 0,
                     steps: parsedData.steps || 0,
-                    timestamp: parsedData.timestamp || Date.now(),
-                    idleSeconds: parsedData.idleSeconds || 0
+                    timestamp: parsedData.timestamp || Date.now()
                 });
 
             } catch (parseError) {
@@ -489,26 +473,18 @@ function useBLE() {
                         heartRate: values[0],
                         spo2: values[1],
                         temperature: values[2],
-                        fingerDetected: values[3] > 0,
                         sleepHours: values[4],
-                        sleeping: values[5] > 0,
-                        activityKmh: values[6],
                         steps: values[7],
-                        timestamp: values[8] || Date.now(),
-                        idleSeconds: values[9] || 0
+                        timestamp: values[8] || Date.now()
                     });
 
                     setSensorData({
                         heartRate: values[0] || 0,
                         spo2: values[1] || 0,
                         temperature: values[2] || 0,
-                        fingerDetected: values[3] > 0,
                         sleepHours: values[4] || 0,
-                        sleeping: values[5] > 0,
-                        activityKmh: values[6] || 0,
                         steps: values[7] || 0,
-                        timestamp: values[8] || Date.now(),
-                        idleSeconds: values[9] || 0
+                        timestamp: values[8] || Date.now()
                     });
                 } else {
                     console.log("Invalid data format received:", rawData);
