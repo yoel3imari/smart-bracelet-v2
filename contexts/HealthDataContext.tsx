@@ -12,10 +12,6 @@ export interface HealthData {
   steps: number;
   timestamp: number;
   lastUpdated: Date;
-  activityKmh: number;
-  fingerDetected: boolean;
-  sleeping: boolean;
-  idleSeconds: number;
 }
 
 export interface HistoricalData {
@@ -48,10 +44,6 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
     steps: 0,
     timestamp: 0,
     lastUpdated: new Date(),
-    activityKmh: 0,
-    fingerDetected: false,
-    sleeping: false,
-    idleSeconds: 0,
   });
 
   const [historicalData, setHistoricalData] = useState<HistoricalData[]>([]);
@@ -89,10 +81,6 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
         steps: bleSensorData.steps || 0,
         timestamp: bleSensorData.timestamp || Date.now(),
         lastUpdated: new Date(),
-        activityKmh: 0, // Default value, should be calculated from device data
-        fingerDetected: false, // Default value, should come from device data
-        sleeping: false, // Default value, should come from device data
-        idleSeconds: 0, // Default value, should come from device data
       };
 
       setCurrentData(newData);

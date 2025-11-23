@@ -13,8 +13,10 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LoadingSpinner } from '@/components/feedback/LoadingSpinner';
 
 export default function SignUpScreen() {
   const insets = useSafeAreaInsets();
@@ -59,7 +61,9 @@ export default function SignUpScreen() {
   };
 
   const navigateToSignIn = () => {
-    router.push('/signin');
+    if (!isLoading) {
+      router.push('/signin');
+    }
   };
 
   return (
@@ -76,7 +80,11 @@ export default function SignUpScreen() {
       >
         <ScrollView contentContainerStyle={styles.contentContainer}>
         <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => !isLoading && router.back()}
+            disabled={isLoading}
+          >
             <ArrowLeft size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Create Account</Text>
@@ -96,6 +104,7 @@ export default function SignUpScreen() {
               onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
               autoCapitalize="words"
               autoComplete="name"
+              editable={!isLoading}
             />
           </View>
 
@@ -112,6 +121,7 @@ export default function SignUpScreen() {
               autoCapitalize="none"
               autoComplete="email"
               keyboardType="email-address"
+              editable={!isLoading}
             />
           </View>
 
@@ -128,6 +138,7 @@ export default function SignUpScreen() {
               secureTextEntry
               autoCapitalize="none"
               autoComplete="new-password"
+              editable={!isLoading}
             />
           </View>
 
@@ -144,6 +155,7 @@ export default function SignUpScreen() {
               secureTextEntry
               autoCapitalize="none"
               autoComplete="new-password"
+              editable={!isLoading}
             />
           </View>
 
@@ -152,20 +164,33 @@ export default function SignUpScreen() {
             onPress={handleSignUp}
             disabled={isLoading}
           >
-            <Text style={styles.signUpButtonText}>
-              {isLoading ? 'Creating Account...' : 'Create Account'}
-            </Text>
+            {isLoading ? (
+              <View style={styles.buttonContent}>
+                <ActivityIndicator size="small" color={colors.white} />
+                <Text style={styles.signUpButtonText}>Creating Account...</Text>
+              </View>
+            ) : (
+              <Text style={styles.signUpButtonText}>Create Account</Text>
+            )}
           </TouchableOpacity>
 
           <View style={styles.signInContainer}>
             <Text style={styles.signInText}>Already have an account? </Text>
-            <TouchableOpacity onPress={navigateToSignIn}>
-              <Text style={styles.signInLink}>Sign In</Text>
+            <TouchableOpacity onPress={navigateToSignIn} disabled={isLoading}>
+              <Text style={[styles.signInLink, isLoading && styles.disabledLink]}>Sign In</Text>
             </TouchableOpacity>
           </View>
         </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {isLoading && (
+        <LoadingSpinner
+          overlay={true}
+          text="Creating account..."
+          fullScreen={true}
+        />
+      )}
     </>
   );
 }
@@ -236,6 +261,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600' as const,
   },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   signInContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -249,5 +279,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.primary,
     fontWeight: '600' as const,
+  },
+  disabledLink: {
+    opacity: 0.5,
   },
 });

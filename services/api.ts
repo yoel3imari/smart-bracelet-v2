@@ -49,7 +49,7 @@ export class ValidationError extends Error {
 // Default configuration
 const defaultConfig: ApiConfig = {
   baseURL: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000',
-  timeout: 10000,
+  timeout: 60000,
   retryAttempts: 3
 };
 

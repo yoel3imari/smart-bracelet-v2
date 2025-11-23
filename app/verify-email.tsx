@@ -1,7 +1,7 @@
 import colors from '@/constants/colors';
 import { useAuth } from '@/contexts/AuthContext';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Mail, RefreshCw } from 'lucide-react-native';
+import { ArrowLeft, Mail, RefreshCw, LogOut } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
@@ -20,7 +20,7 @@ export default function VerifyEmailScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { user, verifyEmail, resendVerificationCode, isLoading } = useAuth();
+  const { user, verifyEmail, resendVerificationCode, signOut, isLoading } = useAuth();
 
   const [code, setCode] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
@@ -93,7 +93,9 @@ export default function VerifyEmailScreen() {
             <ArrowLeft size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Verify Email</Text>
-          <View style={styles.headerPlaceholder} />
+          <TouchableOpacity style={styles.logoutButton} onPress={signOut}>
+            <LogOut size={20} color={colors.danger} />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.content}>
@@ -188,8 +190,15 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     color: colors.text,
   },
-  headerPlaceholder: {
-    width: 40,
+  logoutButton: {
+    padding: 8,
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
   content: {
     paddingHorizontal: 20,

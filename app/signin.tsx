@@ -9,12 +9,14 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft, Mail, Lock } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import colors from '@/constants/colors';
+import { LoadingSpinner } from '@/components/feedback/LoadingSpinner';
 
 export default function SignInScreen() {
   const insets = useSafeAreaInsets();
@@ -81,6 +83,7 @@ export default function SignInScreen() {
               autoCapitalize="none"
               autoComplete="email"
               keyboardType="email-address"
+              editable={!isLoading}
             />
           </View>
 
@@ -97,6 +100,7 @@ export default function SignInScreen() {
               secureTextEntry
               autoCapitalize="none"
               autoComplete="current-password"
+              editable={!isLoading}
             />
           </View>
 
@@ -105,20 +109,39 @@ export default function SignInScreen() {
             onPress={handleSignIn}
             disabled={isLoading}
           >
-            <Text style={styles.signInButtonText}>
-              {isLoading ? 'Signing In...' : 'Sign In'}
-            </Text>
+            {isLoading ? (
+              <View style={styles.buttonContent}>
+                <ActivityIndicator size="small" color={colors.white} />
+                <Text style={styles.signInButtonText}>Signing In...</Text>
+              </View>
+            ) : (
+              <Text style={styles.signInButtonText}>Sign In</Text>
+            )}
           </TouchableOpacity>
 
           <View style={styles.signUpContainer}>
             <Text style={styles.signUpText}>Don&apos;t have an account? </Text>
-            <TouchableOpacity onPress={navigateToSignUp}>
-              <Text style={styles.signUpLink}>Sign Up</Text>
+            <TouchableOpacity onPress={navigateToSignUp} disabled={isLoading}>
+              <Text style={[styles.signUpLink, isLoading && styles.disabledLink]}>Sign Up</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.signUpContainer}>
+            <Text style={styles.signUpText}>Account not verified? </Text>
+            <TouchableOpacity onPress={()=>router.push('/verify-email')} disabled={isLoading}>
+              <Text style={[styles.signUpLink, isLoading && styles.disabledLink]}>Verify account</Text>
             </TouchableOpacity>
           </View>
         </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {isLoading && (
+        <LoadingSpinner
+          overlay={true}
+          text="Signing in..."
+          fullScreen={true}
+        />
+      )}
     </>
   );
 }
@@ -189,10 +212,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600' as const,
   },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   signUpContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 16
   },
   signUpText: {
     fontSize: 14,
@@ -202,5 +231,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.primary,
     fontWeight: '600' as const,
+  },
+  disabledLink: {
+    opacity: 0.5,
   },
 });

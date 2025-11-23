@@ -1,8 +1,18 @@
 import colors from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHealthData } from "@/contexts/HealthDataContext";
+import { useMetricsSummary } from "@/hooks/useMetricsSummary";
+import { SummaryStatistics } from "@/components/analytics/SummaryStatistics";
+import { InteractiveLineChart } from "@/components/analytics/InteractiveLineChart";
+import { BarChart } from "@/components/analytics/BarChart";
+import { MultiMetricChart } from "@/components/analytics/MultiMetricChart";
+import {
+  transformHealthDataToChartData,
+  transformMultipleMetricsToChartData,
+  getReferenceLinesForMetric,
+  getMultiMetricConfig,
+} from "@/utils/chartDataTransformers";
 import { useRouter } from "expo-router";
-import { Download, TrendingUp, Moon, Footprints, Timer, Zap, Fingerprint } from "lucide-react-native";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -14,7 +24,6 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 
 const { width } = Dimensions.get("window");
 const CHART_WIDTH = width - 40;
@@ -28,6 +37,9 @@ export default function AnalyticsScreen() {
   const { historicalData } = useHealthData();
   const { isAuthenticated, isLoading } = useAuth();
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("daily");
+  const [showSummary, setShowSummary] = useState(true);
+  
+  const { summary, metricData, isLoading: summaryLoading, error: summaryError } = useMetricsSummary(timeFilter);
 
   const filteredData = useMemo(() => {
     const now = new Date();
@@ -39,6 +51,53 @@ export default function AnalyticsScreen() {
     const cutoff = new Date(now.getTime() - hoursBack * 60 * 60 * 1000);
     return historicalData.filter((d) => d.timestamp >= cutoff);
   }, [historicalData, timeFilter]);
+
+  // Transform health data to chart datasets
+  const chartData = useMemo(() => {
+    if (filteredData.length === 0) return {};
+
+    return {
+      heartRate: transformHealthDataToChartData(filteredData, 'heartRate', timeFilter),
+      oxygenLevel: transformHealthDataToChartData(filteredData, 'oxygenLevel', timeFilter),
+      steps: transformHealthDataToChartData(filteredData, 'steps', timeFilter),
+      sleepHours: transformHealthDataToChartData(filteredData, 'sleepHours', timeFilter),
+      temperature: transformHealthDataToChartData(filteredData, 'temperature', timeFilter),
+    };
+  }, [filteredData, timeFilter]);
+
+  // Multi-metric chart data for comparison
+  const multiMetricData = useMemo(() => {
+    if (filteredData.length === 0) return [];
+    
+    return transformMultipleMetricsToChartData(
+      filteredData,
+      ['heartRate', 'oxygenLevel', 'temperature'],
+      timeFilter
+    );
+  }, [filteredData, timeFilter]);
+
+  const multiMetricConfig = useMemo(() => {
+    return getMultiMetricConfig(['heartRate', 'oxygenLevel', 'temperature']);
+  }, []);
+
+  const chartConfig = {
+    width: CHART_WIDTH,
+    height: CHART_HEIGHT,
+    padding: { top: 20, right: 20, bottom: 40, left: 40 },
+    showGrid: true,
+    showAxes: true,
+    showTooltip: true,
+    animate: true,
+    animationDuration: 500,
+  };
+
+  const handleDataPointPress = (dataPoint: any, datasetIndex: number) => {
+    console.log('Data point pressed:', dataPoint, 'Dataset:', datasetIndex);
+  };
+
+  const handleMetricToggle = (metricKey: string, visible: boolean) => {
+    console.log('Metric toggled:', metricKey, 'Visible:', visible);
+  };
 
   // Redirect to signin if not authenticated
   useEffect(() => {
@@ -62,205 +121,175 @@ export default function AnalyticsScreen() {
     return null;
   }
 
-  const renderChart = (
-    data: number[],
-    label: string,
-    unit: string,
-    color: string,
-    minVal: number,
-    maxVal: number
-  ) => {
-    if (data.length === 0) return null;
-
-    const padding = 40;
-    const chartWidth = CHART_WIDTH - padding * 2;
-    const chartHeight = CHART_HEIGHT - padding * 2;
-
-    const min = Math.min(...data, minVal);
-    const max = Math.max(...data, maxVal);
-    const range = max - min || 1;
-
-    const points = data.map((value, index) => {
-      const x = padding + (index / (data.length - 1)) * chartWidth;
-      const y = padding + chartHeight - ((value - min) / range) * chartHeight;
-      return { x, y, value };
-    });
-
-    const pathData = points
-      .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
-      .join(" ");
-
-    return (
-      <View style={styles.chartCard}>
-        <View style={styles.chartHeader}>
-          <Text style={styles.chartTitle}>{label}</Text>
-          <View style={styles.trendBadge}>
-            <TrendingUp size={14} color={colors.success} />
-            <Text style={styles.trendText}>Normal</Text>
-          </View>
-        </View>
-        <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
-          <Line
-            x1={padding}
-            y1={padding + chartHeight}
-            x2={padding + chartWidth}
-            y2={padding + chartHeight}
-            stroke={colors.border}
-            strokeWidth="1"
-          />
-          <Line
-            x1={padding}
-            y1={padding}
-            x2={padding}
-            y2={padding + chartHeight}
-            stroke={colors.border}
-            strokeWidth="1"
-          />
-          <Path d={pathData} stroke={color} strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          {points.map((point, index) => (
-            <Circle key={index} cx={point.x} cy={point.y} r="4" fill={color} />
-          ))}
-          <SvgText x={padding - 30} y={padding + 5} fontSize="12" fill={colors.textMuted}>
-            {max.toFixed(0)}
-          </SvgText>
-          <SvgText x={padding - 30} y={padding + chartHeight + 5} fontSize="12" fill={colors.textMuted}>
-            {min.toFixed(0)}
-          </SvgText>
-        </Svg>
-        <View style={styles.chartUnitContainer}>
-          <Text style={styles.chartUnit}>{unit}</Text>
-        </View>
-      </View>
-    );
-  };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-    >
-        <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-          <Text style={styles.headerTitle}>Analytics</Text>
+    <View style={styles.container}>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+        <Text style={styles.headerTitle}>Analytics</Text>
+        {/* <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.viewToggle}
+            onPress={() => setShowSummary(!showSummary)}
+          >
+            <Text style={styles.viewToggleText}>
+              {showSummary ? 'Show Charts' : 'Show Summary'}
+            </Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.exportButton}>
             <Download size={20} color={colors.primary} />
             <Text style={styles.exportText}>Export</Text>
           </TouchableOpacity>
-        </View>
+        </View> */}
+      </View>
 
-        <View style={styles.filterContainer}>
-          <TouchableOpacity
+      <View style={styles.filterContainer}>
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            timeFilter === "daily" && styles.filterButtonActive,
+          ]}
+          onPress={() => setTimeFilter("daily")}
+        >
+          <Text
             style={[
-              styles.filterButton,
-              timeFilter === "daily" && styles.filterButtonActive,
+              styles.filterText,
+              timeFilter === "daily" && styles.filterTextActive,
             ]}
-            onPress={() => setTimeFilter("daily")}
           >
-            <Text
-              style={[
-                styles.filterText,
-                timeFilter === "daily" && styles.filterTextActive,
-              ]}
-            >
-              Daily
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+            Daily
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            timeFilter === "weekly" && styles.filterButtonActive,
+          ]}
+          onPress={() => setTimeFilter("weekly")}
+        >
+          <Text
             style={[
-              styles.filterButton,
-              timeFilter === "weekly" && styles.filterButtonActive,
+              styles.filterText,
+              timeFilter === "weekly" && styles.filterTextActive,
             ]}
-            onPress={() => setTimeFilter("weekly")}
           >
-            <Text
-              style={[
-                styles.filterText,
-                timeFilter === "weekly" && styles.filterTextActive,
-              ]}
-            >
-              Weekly
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+            Weekly
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            timeFilter === "monthly" && styles.filterButtonActive,
+          ]}
+          onPress={() => setTimeFilter("monthly")}
+        >
+          <Text
             style={[
-              styles.filterButton,
-              timeFilter === "monthly" && styles.filterButtonActive,
+              styles.filterText,
+              timeFilter === "monthly" && styles.filterTextActive,
             ]}
-            onPress={() => setTimeFilter("monthly")}
           >
-            <Text
-              style={[
-                styles.filterText,
-                timeFilter === "monthly" && styles.filterTextActive,
-              ]}
-            >
-              Monthly
-            </Text>
-          </TouchableOpacity>
-        </View>
+            Monthly
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-        {renderChart(
-          filteredData.map((d) => d.heartRate),
-          "Heart Rate",
-          "BPM",
-          colors.heart,
-          60,
-          100
+      {showSummary ? (
+        <SummaryStatistics
+          summary={summary || undefined}
+          metricData={metricData}
+          isLoading={summaryLoading}
+          error={summaryError || undefined}
+          timePeriod={timeFilter}
+        />
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}
+        >
+
+        {/* Heart Rate Chart */}
+        {chartData.heartRate && (
+          <InteractiveLineChart
+            data={[chartData.heartRate]}
+            config={chartConfig}
+            referenceLines={getReferenceLinesForMetric('heartRate')}
+            timePeriod={timeFilter}
+            onDataPointPress={handleDataPointPress}
+            showPoints={true}
+            smooth={true}
+            strokeWidth={3}
+          />
         )}
 
-        {renderChart(
-          filteredData.map((d) => d.oxygenLevel),
-          "Oxygen Saturation",
-          "SpO₂ %",
-          colors.success,
-          90,
-          100
+        {/* Oxygen Level Chart */}
+        {chartData.oxygenLevel && (
+          <InteractiveLineChart
+            data={[chartData.oxygenLevel]}
+            config={chartConfig}
+            referenceLines={getReferenceLinesForMetric('oxygenLevel')}
+            timePeriod={timeFilter}
+            onDataPointPress={handleDataPointPress}
+            showPoints={true}
+            smooth={true}
+            strokeWidth={3}
+          />
         )}
 
-        {renderChart(
-          filteredData.map((d) => d.activityKmh),
-          "Activity Speed",
-          "km/h",
-          colors.primary,
-          0,
-          25
+        {/* Step Count Chart */}
+        {chartData.steps && (
+          <BarChart
+            data={[chartData.steps]}
+            config={chartConfig}
+            timePeriod={timeFilter}
+            onDataPointPress={handleDataPointPress}
+            barWidth={20}
+            barSpacing={8}
+            showValues={true}
+          />
         )}
 
-        {renderChart(
-          filteredData.map((d) => d.steps),
-          "Step Count",
-          "steps",
-          colors.success,
-          0,
-          Math.max(1000, ...filteredData.map(d => d.steps))
+        {/* Sleep Hours Chart */}
+        {chartData.sleepHours && (
+          <BarChart
+            data={[chartData.sleepHours]}
+            config={chartConfig}
+            referenceLines={getReferenceLinesForMetric('sleepHours')}
+            timePeriod={timeFilter}
+            onDataPointPress={handleDataPointPress}
+            barWidth={20}
+            barSpacing={8}
+            showValues={true}
+          />
         )}
 
-        {renderChart(
-          filteredData.map((d) => d.sleepHours),
-          "Sleep Hours",
-          "hours",
-          colors.secondary,
-          0,
-          12
+        {/* Temperature Chart */}
+        {chartData.temperature && (
+          <InteractiveLineChart
+            data={[chartData.temperature]}
+            config={chartConfig}
+            referenceLines={getReferenceLinesForMetric('temperature')}
+            timePeriod={timeFilter}
+            onDataPointPress={handleDataPointPress}
+            showPoints={true}
+            smooth={true}
+            strokeWidth={3}
+          />
         )}
 
-        {renderChart(
-          filteredData.map((d) => d.idleSeconds / 60), // Convert to minutes
-          "Idle Time",
-          "minutes",
-          colors.warning,
-          0,
-          120
+        {/* Multi-Metric Comparison Chart */}
+        {multiMetricData.length > 0 && (
+          <MultiMetricChart
+            data={multiMetricData}
+            config={chartConfig}
+            metrics={multiMetricConfig}
+            timePeriod={timeFilter}
+            onDataPointPress={handleDataPointPress}
+            onMetricToggle={handleMetricToggle}
+          />
         )}
-
-        {renderChart(
-          filteredData.map((d) => d.temperature),
-          "Body Temperature",
-          "°C",
-          colors.warning,
-          36,
-          38
-        )}
-    </ScrollView>
+        </ScrollView>
+      )}
+    </View>
   );
 }
 
@@ -271,6 +300,27 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingBottom: 32,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  viewToggle: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  viewToggleText: {
+    fontSize: 12,
+    fontWeight: "600" as const,
+    color: colors.primary,
   },
   loadingContainer: {
     flex: 1,

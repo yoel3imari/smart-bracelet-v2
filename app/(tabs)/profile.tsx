@@ -2,7 +2,7 @@ import colors from '@/constants/colors';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHealthData } from '@/contexts/HealthDataContext';
 import { useRouter } from 'expo-router';
-import { Bluetooth, Edit2, LogOut, Save, X, ChevronDown, Moon } from 'lucide-react-native';
+import { Bluetooth, Edit2, LogOut, Save, X, ChevronDown, Moon, Mail, CheckCircle, AlertCircle } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -82,7 +82,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { userProfile, updateUserProfile, currentData } = useHealthData();
-  const { user, signOut, updateUser, isAuthenticated, isLoading } = useAuth();
+  const { user, signOut, updateUser, isAuthenticated, isLoading, verifyEmail, resendVerificationCode } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('profile');
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editedProfile, setEditedProfile] = useState(userProfile);
@@ -202,7 +202,23 @@ export default function ProfileScreen() {
           <View style={styles.content}>
             <View style={styles.profileCard}>
               <Text style={styles.name}>{user?.name || userProfile.name}</Text>
-              <Text style={styles.email}>{user?.email}</Text>
+              <View style={styles.emailContainer}>
+                <Text style={styles.email}>{user?.email}</Text>
+                {user?.emailVerified ? (
+                  <View style={styles.verifiedBadge}>
+                    <CheckCircle size={16} color={colors.success} />
+                    <Text style={styles.verifiedText}>Verified</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.verifyButton}
+                    onPress={() => router.push('/verify-email')}
+                  >
+                    <AlertCircle size={16} color={colors.warning} />
+                    <Text style={styles.verifyText}>Verify Email</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
 
             {isEditing ? (
@@ -250,35 +266,6 @@ export default function ProfileScreen() {
                     <View style={styles.deviceInfo}>
                       <Text style={styles.deviceName}>MedBand Pro X</Text>
                       <Text style={styles.deviceStatus}>Connected • Battery 87%</Text>
-                    </View>
-                  </View>
-                </View>
-
-
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Sleep Summary</Text>
-                  <View style={styles.sleepCard}>
-                    <View style={styles.sleepHeader}>
-                      <Moon size={24} color={currentData?.sleeping ? colors.secondary : colors.primary} />
-                      <Text style={styles.sleepTitle}>
-                        {currentData?.sleeping ? "Currently Sleeping" : "Sleep Tracking"}
-                      </Text>
-                    </View>
-                    <View style={styles.sleepStats}>
-                      <View style={styles.sleepStat}>
-                        <Text style={styles.sleepStatValue}>
-                          {currentData?.sleeping ? "😴" : (currentData?.sleepHours || 0).toFixed(1)}
-                        </Text>
-                        <Text style={styles.sleepStatLabel}>
-                          {currentData?.sleeping ? "Status" : "Hours Today"}
-                        </Text>
-                      </View>
-                      <View style={styles.sleepStat}>
-                        <Text style={styles.sleepStatValue}>
-                          {currentData?.sleeping ? "Deep" : "Active"}
-                        </Text>
-                        <Text style={styles.sleepStatLabel}>State</Text>
-                      </View>
                     </View>
                   </View>
                 </View>
@@ -552,6 +539,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textMuted,
     textAlign: 'center',
+    marginBottom: 8,
+  },
+  emailContainer: {
+    alignItems: 'center',
+  },
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.success + '20',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 4,
+  },
+  verifiedText: {
+    fontSize: 12,
+    color: colors.success,
+    fontWeight: '600' as const,
+  },
+  verifyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.warning + '20',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 4,
+  },
+  verifyText: {
+    fontSize: 12,
+    color: colors.warning,
+    fontWeight: '600' as const,
   },
   section: {
     marginBottom: 24,

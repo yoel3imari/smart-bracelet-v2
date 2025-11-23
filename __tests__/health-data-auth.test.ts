@@ -15,11 +15,7 @@ describe('Authentication-aware BLE Data Sending', () => {
     oxygenLevel: 98,
     steps: 5000,
     timestamp: Date.now(),
-    lastUpdated: new Date(),
-    activityKmh: 0,
-    fingerDetected: false,
-    sleeping: false,
-    idleSeconds: 0,
+    lastUpdated: new Date()
   };
 
   beforeEach(() => {
