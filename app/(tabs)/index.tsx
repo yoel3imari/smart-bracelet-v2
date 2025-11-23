@@ -15,7 +15,7 @@ import {
   MoonStarIcon,
   RefreshCw,
   Thermometer,
-  User
+  User,
 } from "lucide-react-native";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -190,12 +190,12 @@ export default function HomeScreen() {
   });
 
   const openBluetoothSettings = async () => {
-    if (Platform.OS === 'android') {
+    if (Platform.OS === "android") {
       // Opens directly to Bluetooth settings on Android
       try {
-        await Linking.sendIntent('android.settings.BLUETOOTH_SETTINGS');
+        await Linking.sendIntent("android.settings.BLUETOOTH_SETTINGS");
       } catch (error) {
-        Alert.alert('Error', 'Cannot open Bluetooth settings');
+        Alert.alert("Error", "Cannot open Bluetooth settings");
       }
     } else {
       // iOS: Opens App Settings (Safe for App Store)
@@ -226,21 +226,26 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={styles.statusContainer}
               onPress={() => {
-                if (bluetoothState === 'PoweredOff') {
+                if (bluetoothState === "PoweredOff") {
                   Alert.alert(
                     "Bluetooth required",
                     "Please enable Bluetooth to connect to your device.",
                     [
                       {
-                        text: "Cancel", style: "cancel", onPress: () => { return; }
+                        text: "Cancel",
+                        style: "cancel",
+                        onPress: () => {
+                          return;
+                        },
                       },
                       {
-                        text: "Open Settings", onPress: async () => {
+                        text: "Open Settings",
+                        onPress: async () => {
                           // Open device Bluetooth settings
                           // Note: This requires additional implementation depending on the platform
                           await openBluetoothSettings();
-                        }
-                      }
+                        },
+                      },
                     ]
                   );
                   return;
@@ -263,29 +268,26 @@ export default function HomeScreen() {
                 }
               }}
             >
-              {
-                bluetoothState === 'PoweredOff' ? (
-                  <View style={styles.permissionWarning}>
-                    <Text style={styles.permissionWarningText}>
-                      Activate Bluetooth
-                    </Text>
-                  </View>
-                ) : (
-                  <>
-                    <Text style={styles.statusText}>
-                      {isConnected ? "Connected" : "Tap to Connect"}
-                    </Text>
-                    {!isConnected && (
-                      <Bluetooth
-                        size={16}
-                        color={colors.primary}
-                        style={styles.bluetoothIcon}
-                      />
-                    )}
-                  </>
-                )
-              }
-
+              {bluetoothState === "PoweredOff" ? (
+                <View style={styles.permissionWarning}>
+                  <Text style={styles.permissionWarningText}>
+                    Activate Bluetooth
+                  </Text>
+                </View>
+              ) : (
+                <>
+                  <Text style={styles.statusText}>
+                    {isConnected ? "Connected" : "Tap to Connect"}
+                  </Text>
+                  {!isConnected && (
+                    <Bluetooth
+                      size={16}
+                      color={colors.primary}
+                      style={styles.bluetoothIcon}
+                    />
+                  )}
+                </>
+              )}
             </TouchableOpacity>
           </View>
           <View style={styles.headerRight}>
@@ -299,11 +301,11 @@ export default function HomeScreen() {
               onPress={() => {
                 if (isAuthenticated) {
                   // Navigate to Profile screen if authenticated
-                  router.push('/(tabs)/profile');
+                  router.push("/(tabs)/profile");
                   // <Redirect href="/(tabs)/profile" />
                 } else {
                   // Navigate to Sign Up screen if not authenticated
-                  router.push('/signup');
+                  router.push("/signup");
                   // <Redirect href="/signin" />
                 }
               }}
@@ -323,8 +325,14 @@ export default function HomeScreen() {
               <RefreshCw size={20} color={colors.primary} />
             </TouchableOpacity>
           </View>
-          <Text style={isConnected ? styles.anomalyText : styles.anomalyTextUnavailable}>
-            {isConnected ? "All vitals within normal range" : "Data unavailable: connect device"}
+          <Text
+            style={
+              isConnected ? styles.anomalyText : styles.anomalyTextUnavailable
+            }
+          >
+            {isConnected
+              ? "All vitals within normal range"
+              : "Data unavailable: connect device"}
           </Text>
         </View>
 
@@ -356,7 +364,9 @@ export default function HomeScreen() {
               <HeartCrack size={120} color={colors.textMuted} />
               <View style={styles.bpmBadge}>
                 <View style={styles.bpmContainer}>
-                  <Text style={[styles.bpmText, styles.disconnectedBpmText]}>--</Text>
+                  <Text style={[styles.bpmText, styles.disconnectedBpmText]}>
+                    --
+                  </Text>
                   <Text style={styles.bpmLabel}>BPM</Text>
                 </View>
               </View>
@@ -379,20 +389,6 @@ export default function HomeScreen() {
               <Text style={styles.statUnit}>Hours</Text>
             </View>
           </View>
-          <View style={styles.statCard}>
-            <View
-              style={[styles.statIcon, { backgroundColor: "#FFF4E6" }]}
-            >
-              <Footprints size={24} color={colors.primary} />
-            </View>
-            <Text style={styles.statLabel}>Steps</Text>
-            <View style={styles.numUnitWrapper}>
-              <Text style={styles.statValue}>
-                {currentData.steps.toLocaleString()}
-              </Text>
-              <Text style={styles.statUnit}>steps</Text>
-            </View>
-          </View>
 
           <View style={styles.statCard}>
             <View style={[styles.statIcon, { backgroundColor: "#FFF4E6" }]}>
@@ -401,7 +397,7 @@ export default function HomeScreen() {
             <Text style={styles.statLabel}>Body Temperature</Text>
             <View style={styles.numUnitWrapper}>
               <Text style={styles.statValue}>
-                {currentData.temperature}
+                {currentData.temperature.toFixed(1)}
               </Text>
               <Text style={styles.statUnit}>°C</Text>
             </View>
@@ -417,6 +413,17 @@ export default function HomeScreen() {
                 {Math.round(currentData.oxygenLevel)}
               </Text>
               <Text style={styles.statUnit}>%</Text>
+            </View>
+          </View>
+
+          <View style={styles.statCard}>
+            <View style={[styles.statIcon, { backgroundColor: "#ffe6e6ff" }]}>
+              <Footprints size={24} color={colors.danger} />
+            </View>
+            <Text style={styles.statLabel}>Steps</Text>
+            <View style={styles.numUnitWrapper}>
+              <Text style={styles.statValue}>{currentData.steps}</Text>
+              <Text style={styles.statUnit}>steps/H</Text>
             </View>
           </View>
         </View>
@@ -741,6 +748,6 @@ const styles = StyleSheet.create({
   permissionWarningText: {
     fontSize: 10,
     color: colors.white,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });
