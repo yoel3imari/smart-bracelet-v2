@@ -109,112 +109,16 @@ export const InteractiveLineChart: React.FC<LineChartProps> = ({
     });
   }, [processedData, xScale, yScale, smooth]);
 
-  // Handle touch events for tooltips and interactions
-  const handleTouch = useCallback(
-    debounce((event: GestureResponderEvent) => {
-      if (!svgRef.current || processedData.length === 0) return;
+  // Disabled touch events for tooltips and interactions
+  const handleTouch = useCallback(() => {
+    // No-op function to disable touch interactions
+  }, []);
 
-      const { locationX, locationY } = event.nativeEvent;
-      
-      // Find the closest data point
-      let closestPoint: any = null;
-      let closestDistance = Infinity;
-      let closestDatasetIndex = -1;
-
-      processedData.forEach((dataset, datasetIndex) => {
-        dataset.data.forEach((point, pointIndex) => {
-          const pointX = xScale(pointIndex);
-          const pointY = yScale(point.y);
-          const distance = Math.sqrt(
-            Math.pow(locationX - pointX, 2) + Math.pow(locationY - pointY, 2)
-          );
-
-          if (distance < 30 && distance < closestDistance) {
-            closestDistance = distance;
-            closestPoint = { ...point, datasetIndex, pointIndex };
-            closestDatasetIndex = datasetIndex;
-          }
-        });
-      });
-
-      if (closestPoint) {
-        // Show tooltip
-        const tooltipDataPoints = processedData.map((dataset, index) => ({
-          datasetLabel: dataset.label,
-          value: dataset.data[closestPoint.pointIndex]?.y || 0,
-          color: dataset.color,
-          unit: dataset.data[closestPoint.pointIndex]?.metadata?.unit || "",
-        }));
-
-        setTooltip({
-          x: xScale(closestPoint.pointIndex),
-          y: yScale(closestPoint.y),
-          visible: true,
-          dataPoints: tooltipDataPoints,
-        });
-
-        // Call onDataPointPress callback
-        if (onDataPointPress) {
-          onDataPointPress(closestPoint, closestDatasetIndex);
-        }
-      } else {
-        setTooltip(prev => ({ ...prev, visible: false }));
-      }
-    }, 100),
-    [processedData, xScale, yScale, onDataPointPress]
-  );
-
-  // Pan responder for touch interactions
+  // Disabled pan responder
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (event: GestureResponderEvent) => {
-        const { locationX, locationY } = event.nativeEvent;
-        setInteractionState(prev => ({
-          ...prev,
-          lastTouchX: locationX,
-          lastTouchY: locationY,
-        }));
-        setTooltip(prev => ({ ...prev, visible: false }));
-      },
-      onPanResponderMove: (
-        event: GestureResponderEvent,
-        gestureState: PanResponderGestureState
-      ) => {
-        const { dx, dy } = gestureState;
-        
-        setInteractionState(prev => {
-          const newZoomState = {
-            ...prev.zoomState,
-            translateX: prev.zoomState.translateX + dx,
-            translateY: prev.zoomState.translateY + dy,
-          };
-
-          // Call zoom change callback
-          if (onZoomChange) {
-            onZoomChange(newZoomState);
-          }
-
-          return {
-            ...prev,
-            zoomState: newZoomState,
-            isPanning: true,
-          };
-        });
-      },
-      onPanResponderRelease: () => {
-        setInteractionState(prev => ({
-          ...prev,
-          isPanning: false,
-        }));
-      },
-      onPanResponderTerminate: () => {
-        setInteractionState(prev => ({
-          ...prev,
-          isPanning: false,
-        }));
-      },
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: () => false,
     })
   ).current;
 

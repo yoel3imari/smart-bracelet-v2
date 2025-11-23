@@ -1,6 +1,6 @@
 import colors from "@/constants/colors";
 import { PeriodSummary, TimePeriod, DailyMetricData } from "@/types/analytics";
-import { MetricType } from "@/services/metric.service";
+import { MetricType, metricService, HealthPredictionResponse } from "@/services/metric.service";
 import { MetricSummaryData } from "@/hooks/useMetricsSummary";
 import {
   Heart,
@@ -12,10 +12,14 @@ import {
   Timer,
   TrendingUp,
   TrendingDown,
-  Minus
+  Minus,
+  RefreshCw,
+  AlertTriangle,
+  CheckCircle,
+  Info
 } from "lucide-react-native";
-import React from "react";
-import { StyleSheet, Text, View, ScrollView } from "react-native";
+import React, { useState, useCallback } from "react";
+import { StyleSheet, Text, View, ScrollView, Dimensions, TouchableOpacity, Alert } from "react-native";
 import { SummaryCard } from "./SummaryCard";
 import { HealthStatusIndicator } from "./HealthStatusIndicator";
 import { LoadingSpinner } from "../feedback/LoadingSpinner";
@@ -36,6 +40,9 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
   error,
   timePeriod,
 }) => {
+  const [healthPrediction, setHealthPrediction] = useState<HealthPredictionResponse | null>(null);
+  const [isPredicting, setIsPredicting] = useState(false);
+  const [predictionError, setPredictionError] = useState<string | null>(null);
   const getHealthStatus = (metric: string, value: number): 'good' | 'warning' | 'danger' => {
     switch (metric) {
       case 'heartRate':
@@ -150,13 +157,16 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
       }))
     }];
 
+    // Calculate dynamic width based on container padding
+    const chartWidth = Dimensions.get('window').width - 72; // 20px padding * 2 + 16px container padding * 2
+
     return (
       <View style={styles.chartContainer}>
         <Text style={styles.chartTitle}>{getMetricDisplayName(metricType)} Trend</Text>
         <InteractiveLineChart
           data={chartData}
           config={{
-            width: 300,
+            width: chartWidth,
             height: 200,
             showGrid: true,
             showAxes: true,
@@ -169,6 +179,65 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
       </View>
     );
   };
+
+  // Helper functions for health prediction display
+  const formatRiskLevel = (riskLevel: string): { text: string; color: string } => {
+    switch (riskLevel) {
+      case 'low':
+        return { text: 'Low Risk', color: colors.success };
+      case 'medium':
+        return { text: 'Medium Risk', color: colors.warning };
+      case 'high':
+        return { text: 'High Risk', color: colors.danger };
+      default:
+        return { text: 'Unknown', color: colors.textMuted };
+    }
+  };
+
+  const formatPredictionResult = (result: number): { text: string; color: string } => {
+    switch (result) {
+      case 0:
+        return { text: 'Normal', color: colors.success };
+      case 1:
+        return { text: 'Sick', color: colors.warning };
+      case 2:
+        return { text: 'Life-Threatening', color: colors.danger };
+      default:
+        return { text: 'Unknown', color: colors.textMuted };
+    }
+  };
+
+  const formatMetricStatus = (isHealthy: boolean): { text: string; color: string } => {
+    return isHealthy
+      ? { text: 'Normal', color: colors.success }
+      : { text: 'Warning', color: colors.warning };
+  };
+
+  // Handle health prediction request
+  const handleHealthPrediction = useCallback(async () => {
+    setIsPredicting(true);
+    setPredictionError(null);
+    
+    try {
+      const prediction = await metricService.getHealthPrediction({
+        include_metrics: true,
+        prediction_horizon_hours: 24
+      });
+      setHealthPrediction(prediction);
+    } catch (error) {
+      console.error('Health prediction failed:', error);
+      setPredictionError(
+        error instanceof Error ? error.message : 'Failed to get health prediction'
+      );
+      Alert.alert(
+        'Health Prediction Error',
+        'Unable to generate health prediction. Please try again later.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsPredicting(false);
+    }
+  }, []);
 
   if (error) {
     return (
@@ -201,7 +270,11 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Health Score */}
-      <View style={styles.healthScoreCard}>
+      <TouchableOpacity
+        style={styles.healthScoreCard}
+        onPress={handleHealthPrediction}
+        disabled={isPredicting}
+      >
         <View style={styles.healthScoreHeader}>
           <Text style={styles.healthScoreTitle}>Health Score</Text>
           <View style={styles.scoreContainer}>
@@ -210,23 +283,165 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
           </View>
         </View>
         <View style={styles.scoreBar}>
-          <View 
+          <View
             style={[
               styles.scoreFill,
-              { 
+              {
                 width: `${healthScore}%`,
-                backgroundColor: healthScore >= 80 ? colors.success : 
+                backgroundColor: healthScore >= 80 ? colors.success :
                                 healthScore >= 60 ? colors.warning : colors.danger
               }
-            ]} 
+            ]}
           />
         </View>
         <Text style={styles.healthScoreDescription}>
-          {healthScore >= 80 ? 'Excellent' : 
-           healthScore >= 60 ? 'Good' : 
+          {healthScore >= 80 ? 'Excellent' :
+           healthScore >= 60 ? 'Good' :
            'Needs Improvement'}
         </Text>
-      </View>
+        <View style={styles.healthPredictionTrigger}>
+          {isPredicting ? (
+            <View style={styles.predictingContainer}>
+              <RefreshCw size={16} color={colors.primary} />
+              <Text style={styles.predictingText}>Analyzing health...</Text>
+            </View>
+          ) : (
+            <View style={styles.predictContainer}>
+              <Text style={styles.predictText}>Tap for health prediction</Text>
+              <TrendingUp size={16} color={colors.primary} />
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+
+      {/* Health Prediction Results */}
+      {healthPrediction && (
+        <View style={styles.predictionCard}>
+          <View style={styles.predictionHeader}>
+            <Text style={styles.predictionTitle}>Health Prediction</Text>
+            <TouchableOpacity onPress={() => setHealthPrediction(null)}>
+              <Text style={styles.closeButton}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {/* Overall Health Assessment */}
+          <View style={styles.predictionSection}>
+            <Text style={styles.predictionSectionTitle}>Overall Assessment</Text>
+            <View style={styles.assessmentRow}>
+              <View style={styles.assessmentItem}>
+                <Text style={styles.assessmentLabel}>Health Score</Text>
+                <Text style={[
+                  styles.assessmentValue,
+                  { color: healthPrediction.overall_health_score >= 80 ? colors.success :
+                           healthPrediction.overall_health_score >= 60 ? colors.warning : colors.danger }
+                ]}>
+                  {healthPrediction.overall_health_score}/100
+                </Text>
+              </View>
+              <View style={styles.assessmentItem}>
+                <Text style={styles.assessmentLabel}>Risk Level</Text>
+                <View style={[
+                  styles.riskBadge,
+                  { backgroundColor: formatRiskLevel(healthPrediction.health_risk_level).color + '20' }
+                ]}>
+                  <Text style={[
+                    styles.riskText,
+                    { color: formatRiskLevel(healthPrediction.health_risk_level).color }
+                  ]}>
+                    {formatRiskLevel(healthPrediction.health_risk_level).text}
+                  </Text>
+                </View>
+              </View>
+            </View>
+            <View style={styles.predictionResult}>
+              <Text style={styles.predictionResultLabel}>Confidence:</Text>
+              <Text style={styles.confidenceText}>
+                {Math.round(healthPrediction.confidence_score * 100)}%
+              </Text>
+            </View>
+          </View>
+
+          {/* Metric Averages */}
+          {healthPrediction.metric_averages && healthPrediction.metric_averages.length > 0 && (
+            <View style={styles.predictionSection}>
+              <Text style={styles.predictionSectionTitle}>Metric Analysis</Text>
+              {healthPrediction.metric_averages.map((metric, index) => (
+                <View key={index} style={styles.metricAnalysisItem}>
+                  <View style={styles.metricAnalysisHeader}>
+                    <Text style={styles.metricName}>{metric.metric_type}</Text>
+                    <View style={[
+                      styles.statusBadge,
+                      { backgroundColor: formatMetricStatus(metric.is_healthy).color + '20' }
+                    ]}>
+                      <Text style={[
+                        styles.statusText,
+                        { color: formatMetricStatus(metric.is_healthy).color }
+                      ]}>
+                        {formatMetricStatus(metric.is_healthy).text}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.metricDetails}>
+                    <Text style={styles.metricValue}>
+                      {metric.average_value?.toFixed(1) || 'N/A'} {metric.unit}
+                    </Text>
+                    <Text style={styles.metricScore}>
+                      Score: {metric.health_score}/100
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Risk Factors */}
+          {healthPrediction.risk_factors && healthPrediction.risk_factors.length > 0 && (
+            <View style={styles.predictionSection}>
+              <Text style={styles.predictionSectionTitle}>Risk Factors</Text>
+              {healthPrediction.risk_factors.map((factor, index) => (
+                <View key={index} style={styles.riskFactorItem}>
+                  <AlertTriangle size={16} color={colors.warning} />
+                  <Text style={styles.riskFactorText}>{factor}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Recommendations */}
+          {healthPrediction.recommendations && healthPrediction.recommendations.length > 0 && (
+            <View style={styles.predictionSection}>
+              <Text style={styles.predictionSectionTitle}>Recommendations</Text>
+              {healthPrediction.recommendations.map((recommendation, index) => (
+                <View key={index} style={styles.recommendationItem}>
+                  <Text style={styles.recommendationBullet}>•</Text>
+                  <Text style={styles.recommendationText}>{recommendation}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Prediction Footer */}
+          <View style={styles.predictionFooter}>
+            <Text style={styles.predictionHorizon}>
+              Prediction for next {healthPrediction.prediction_horizon_hours} hours
+            </Text>
+            <Text style={styles.modelVersion}>
+              Model: {healthPrediction.model_version}
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* Prediction Error */}
+      {predictionError && (
+        <View style={styles.errorCard}>
+          <AlertTriangle size={20} color={colors.danger} />
+          <Text style={styles.errorCardText}>{predictionError}</Text>
+          <TouchableOpacity onPress={() => setPredictionError(null)}>
+            <Text style={styles.closeButton}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Key Metrics Summary Cards */}
       <View style={styles.cardsGrid}>
@@ -498,5 +713,198 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.text,
     lineHeight: 20,
+  },
+  healthPredictionTrigger: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  predictingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  predictingText: {
+    fontSize: 14,
+    color: colors.primary,
+    marginLeft: 8,
+    fontWeight: '500' as const,
+  },
+  predictContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  predictText: {
+    fontSize: 14,
+    color: colors.primary,
+    marginRight: 8,
+    fontWeight: '500' as const,
+  },
+  predictionCard: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  predictionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  predictionTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: colors.text,
+  },
+  closeButton: {
+    fontSize: 18,
+    color: colors.textMuted,
+    fontWeight: '600' as const,
+  },
+  predictionSection: {
+    marginBottom: 20,
+  },
+  predictionSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: colors.text,
+    marginBottom: 12,
+  },
+  assessmentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  assessmentItem: {
+    flex: 1,
+  },
+  assessmentLabel: {
+    fontSize: 14,
+    color: colors.textMuted,
+    marginBottom: 4,
+  },
+  assessmentValue: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+  },
+  riskBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  riskText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+  },
+  predictionResult: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  predictionResultLabel: {
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '500' as const,
+  },
+  confidenceText: {
+    fontSize: 16,
+    color: colors.primary,
+    fontWeight: '700' as const,
+  },
+  metricAnalysisItem: {
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+  },
+  metricAnalysisHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  metricName: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: colors.text,
+    flex: 1,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: '600' as const,
+  },
+  metricDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  metricValue: {
+    fontSize: 12,
+    color: colors.text,
+    fontWeight: '500' as const,
+  },
+  metricScore: {
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  riskFactorItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  riskFactorText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    marginLeft: 8,
+    lineHeight: 20,
+  },
+  predictionFooter: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 12,
+    marginTop: 8,
+  },
+  predictionHorizon: {
+    fontSize: 12,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  modelVersion: {
+    fontSize: 10,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
+  errorCard: {
+    backgroundColor: colors.danger + '10',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.danger + '20',
+  },
+  errorCardText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.danger,
+    marginLeft: 12,
+    marginRight: 12,
   },
 });

@@ -26,7 +26,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
-const CHART_WIDTH = width - 40;
+const CHART_WIDTH = width - 40; // 20px padding on each side
 const CHART_HEIGHT = 200;
 
 type TimeFilter = "daily" | "weekly" | "monthly";
@@ -404,6 +404,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
+    overflow: 'hidden', // Prevent chart overflow
   },
   chartHeader: {
     flexDirection: "row",

@@ -114,77 +114,16 @@ export const BarChart: React.FC<BarChartProps> = ({
     return positions;
   }, [processedData, xScale, yScale, barWidth, barSpacing, config.padding]);
 
-  // Handle touch events for tooltips
-  const handleTouch = useCallback(
-    debounce((event: GestureResponderEvent) => {
-      if (!svgRef.current || barPositions.length === 0) return;
+  // Disabled touch events for tooltips and interactions
+  const handleTouch = useCallback(() => {
+    // No-op function to disable touch interactions
+  }, []);
 
-      const { locationX, locationY } = event.nativeEvent;
-      
-      // Find the closest bar
-      let closestBar: any = null;
-      let closestDistance = Infinity;
-
-      barPositions.forEach((barGroup, groupIndex) => {
-        barGroup.forEach(bar => {
-          const barCenterX = bar.x + bar.width / 2;
-          const barCenterY = bar.y + bar.height / 2;
-          const distance = Math.sqrt(
-            Math.pow(locationX - barCenterX, 2) + Math.pow(locationY - barCenterY, 2)
-          );
-
-          if (distance < 50 && distance < closestDistance) {
-            closestDistance = distance;
-            closestBar = { ...bar, groupIndex };
-          }
-        });
-      });
-
-      if (closestBar) {
-        // Show tooltip
-        const tooltipDataPoints = processedData.map((dataset, index) => ({
-          datasetLabel: dataset.label,
-          value: dataset.data[closestBar.groupIndex]?.y || 0,
-          color: dataset.color,
-          unit: dataset.data[closestBar.groupIndex]?.metadata?.unit || "",
-        }));
-
-        setTooltip({
-          x: closestBar.x + closestBar.width / 2,
-          y: closestBar.y - 20,
-          visible: true,
-          dataPoints: tooltipDataPoints,
-        });
-
-        // Call onDataPointPress callback
-        if (onDataPointPress) {
-          onDataPointPress(
-            {
-              x: closestBar.groupIndex,
-              y: closestBar.value,
-              label: closestBar.label,
-            },
-            closestBar.datasetIndex
-          );
-        }
-      } else {
-        setTooltip(prev => ({ ...prev, visible: false }));
-      }
-    }, 100),
-    [barPositions, processedData, onDataPointPress]
-  );
-
-  // Pan responder for basic interactions
+  // Disabled pan responder
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        setTooltip(prev => ({ ...prev, visible: false }));
-      },
-      onPanResponderMove: () => {
-        // Basic panning could be implemented here for horizontal scrolling
-      },
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: () => false,
     })
   ).current;
 
