@@ -1,7 +1,8 @@
-import { issueService, metricService, offlineStorageService, MetricCreate, MetricType } from '@/services';
+      import { issueService, metricService, offlineStorageService, MetricCreate, MetricType } from '@/services';
 import createContextHook from '@nkzw/create-context-hook';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useBle } from './BleContext';
+import { useAuth } from './AuthContext';
 
 export interface HealthData {
   heartRate: number;
@@ -74,6 +75,9 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
     disconnectFromDevice,
   } = useBle();
 
+  // Use the Auth context to check authentication state
+  const { isAuthenticated } = useAuth();
+
   // Update health data when Bluetooth data changes
   useEffect(() => {
     if (bleSensorData && isConnected) {
@@ -118,7 +122,7 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
     }
   }, [bleSensorData, isConnected]);
 
-  // Send health metrics to backend or offline storage
+  // Send health metrics to backend or offline storage with authentication awareness
   const sendMetricsToBackend = useCallback(async (data: HealthData, timestamp: Date) => {
     try {
       const metrics = metricService.createHealthMetrics({
@@ -131,19 +135,41 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
         sensorModel: 'Health-Monitor-Bracelet', // Default sensor model
       });
 
-      if (metrics.length > 0) {
-        // Check connectivity and use appropriate storage
+      if (metrics.length === 0) {
+        console.log('No valid metrics to send/store');
+        return;
+      }
+
+      // Authentication-aware data handling
+      if (isAuthenticated) {
+        // User is authenticated - send to backend if online, store offline otherwise
         if (offlineStorageService.isOnline()) {
-          await metricService.createMetricsBatch({ metrics });
-          console.log('Metrics sent to backend successfully');
+          try {
+            await metricService.createMetricsBatch({ metrics });
+            console.log('Metrics sent to backend successfully (authenticated user)');
+          } catch (apiError) {
+            console.error('Failed to send metrics to backend, storing offline:', apiError);
+            await offlineStorageService.storeMetrics(metrics);
+            console.log('Metrics stored offline after backend failure');
+          }
         } else {
           await offlineStorageService.storeMetrics(metrics);
-          console.log('Metrics stored offline for later sync');
+          console.log('Metrics stored offline for later sync (authenticated user)');
+        }
+      } else {
+        // User is not authenticated - always store offline with unauthenticated metadata
+        await offlineStorageService.storeMetrics(metrics);
+        console.log('Metrics stored offline (unauthenticated user)');
+        
+        // Clean up old unauthenticated data periodically (7-day retention)
+        const storedMetrics = await offlineStorageService.getStoredMetrics();
+        if (storedMetrics.length > 100) { // Cleanup when we have significant data
+          await offlineStorageService.cleanupOldData(false); // false = unauthenticated retention (7 days)
         }
       }
     } catch (error) {
       console.error('Failed to send/store metrics:', error);
-      // Fallback to offline storage on any error
+      // Final fallback - try to store offline regardless of authentication state
       try {
         const metrics = metricService.createHealthMetrics({
           heartRate: data.heartRate,
@@ -155,12 +181,12 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
           sensorModel: 'Health-Monitor-Bracelet', // Default sensor model
         });
         await offlineStorageService.storeMetrics(metrics);
-        console.log('Metrics stored offline as fallback');
+        console.log('Metrics stored offline as final fallback');
       } catch (fallbackError) {
-        console.error('Failed to store metrics offline:', fallbackError);
+        console.error('Failed to store metrics offline as fallback:', fallbackError);
       }
     }
-  }, []);
+  }, [isAuthenticated]);
 
   const checkForAlerts = useCallback((data: HealthData) => {
     const alerts = [];

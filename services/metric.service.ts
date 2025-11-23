@@ -36,6 +36,13 @@ export interface MetricResponse {
   deleted_at?: string;
 }
 
+export interface MetricUpdate {
+  value?: number;
+  unit?: string;
+  sensor_model?: string;
+  timestamp?: string;
+}
+
 export interface MetricSummary {
   metric_type: MetricType;
   count: number;
@@ -44,6 +51,31 @@ export interface MetricSummary {
   max_value?: number;
   latest_timestamp?: string;
   unit: string;
+}
+
+export interface BatchCreateResponse {
+  total_processed: number;
+  successful: number;
+  failed: number;
+  created_metrics: MetricResponse[];
+  errors?: Array<{
+    index: number;
+    error: string;
+  }>;
+  status?: string;
+}
+
+export interface MetricsStatistics {
+  total_metrics: number;
+  metrics_by_type: Array<{
+    metric_type: MetricType;
+    count: number;
+    average_value?: number;
+  }>;
+  time_range: {
+    start_date: string;
+    end_date: string;
+  };
 }
 
 export interface HealthPredictionResponse {
@@ -73,6 +105,8 @@ export interface MetricQueryParams {
   metric_type?: MetricType;
   start_date?: string;
   end_date?: string;
+  user_id?: string;
+  sensor_model?: string;
 }
 
 export class MetricService {
@@ -82,7 +116,7 @@ export class MetricService {
    * Create metrics batch for authenticated user
    * Uses JWT Bearer authentication for all endpoints
    */
-  async createMetricsBatch(metricsBatch: MetricBatchCreate): Promise<any> {
+  async createMetricsBatch(metricsBatch: MetricBatchCreate): Promise<BatchCreateResponse> {
     // Validate metrics before processing with detailed error reporting
     const validation = this.validateMetricsBatch(metricsBatch);
     if (!validation.valid) {
@@ -102,7 +136,13 @@ export class MetricService {
       // Check if we should use offline storage
       if (!offlineStorageService.isOnline()) {
         await offlineStorageService.storeMetrics(metricsBatch.metrics);
-        return { status: 'queued', count: metricsBatch.metrics.length };
+        return {
+          total_processed: metricsBatch.metrics.length,
+          successful: 0,
+          failed: 0,
+          created_metrics: [],
+          status: 'queued'
+        };
       }
 
       const response = await apiService.post<any>('/api/v1/metrics/batch', metricsBatch);
@@ -115,7 +155,13 @@ export class MetricService {
       // On network error, store offline and retry later
       if (error instanceof NetworkError || (error instanceof ApiError && error.status >= 500)) {
         await offlineStorageService.storeMetrics(metricsBatch.metrics);
-        return { status: 'queued', count: metricsBatch.metrics.length };
+        return {
+          total_processed: metricsBatch.metrics.length,
+          successful: 0,
+          failed: 0,
+          created_metrics: [],
+          status: 'queued'
+        };
       }
       
       // Re-throw validation and authentication errors
@@ -132,7 +178,7 @@ export class MetricService {
   /**
    * Create a single metric
    */
-  async createMetric(metric: MetricCreate): Promise<any> {
+  async createMetric(metric: MetricCreate): Promise<BatchCreateResponse> {
     return this.createMetricsBatch({ metrics: [metric] });
   }
 
@@ -155,6 +201,8 @@ export class MetricService {
       if (params.metric_type) queryParams.append('metric_type', params.metric_type);
       if (params.start_date) queryParams.append('start_date', params.start_date);
       if (params.end_date) queryParams.append('end_date', params.end_date);
+      if (params.user_id) queryParams.append('user_id', params.user_id);
+      if (params.sensor_model) queryParams.append('sensor_model', params.sensor_model);
 
       const queryString = queryParams.toString();
       const endpoint = queryString ? `/api/v1/metrics/?${queryString}` : '/api/v1/metrics/';
@@ -192,6 +240,34 @@ export class MetricService {
       }
       if (error instanceof ApiError && error.status === 404) {
         throw new ApiError('Metric not found', 404, 'NOT_FOUND');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Update metric
+   */
+  async updateMetric(metricId: string, metricUpdate: MetricUpdate): Promise<MetricResponse> {
+    try {
+      const response = await apiService.put<MetricResponse>(`/api/v1/metrics/${metricId}`, metricUpdate);
+      
+      // Clear cache after update
+      this.clearCache();
+      
+      return response;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        throw new ApiError('Authentication required to update metric', 401, 'UNAUTHORIZED');
+      }
+      if (error instanceof ApiError && error.status === 403) {
+        throw new ApiError('Insufficient permissions to update metric', 403, 'FORBIDDEN');
+      }
+      if (error instanceof ApiError && error.status === 404) {
+        throw new ApiError('Metric not found', 404, 'NOT_FOUND');
+      }
+      if (error instanceof ApiError && error.status === 422) {
+        throw new ValidationError('Metric update validation failed', error.details?.detail);
       }
       throw error;
     }
@@ -262,6 +338,30 @@ export class MetricService {
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         throw new ApiError('Authentication required to access health prediction', 401, 'UNAUTHORIZED');
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Get metrics statistics
+   */
+  async getMetricsStatistics(params: { start_date?: string; end_date?: string; metric_type?: MetricType } = {}): Promise<MetricsStatistics> {
+    try {
+      const queryParams = new URLSearchParams();
+      
+      if (params.start_date) queryParams.append('start_date', params.start_date);
+      if (params.end_date) queryParams.append('end_date', params.end_date);
+      if (params.metric_type) queryParams.append('metric_type', params.metric_type);
+
+      const queryString = queryParams.toString();
+      const endpoint = queryString ? `/api/v1/metrics/statistics?${queryString}` : '/api/v1/metrics/statistics';
+      
+      const response = await apiService.get<MetricsStatistics>(endpoint);
+      return response;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        throw new ApiError('Authentication required to access metrics statistics', 401, 'UNAUTHORIZED');
       }
       throw error;
     }
