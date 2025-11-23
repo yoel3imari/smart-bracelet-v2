@@ -5,6 +5,8 @@ import { ArrowLeft, Mail, RefreshCw } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -80,7 +82,12 @@ export default function VerifyEmailScreen() {
           headerShown: false,
         }}
       />
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      >
+        <ScrollView contentContainerStyle={styles.contentContainer}>
         <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <ArrowLeft size={24} color={colors.text} />
@@ -151,7 +158,8 @@ export default function VerifyEmailScreen() {
             </View>
           )}
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </>
   );
 }

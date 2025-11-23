@@ -5,6 +5,8 @@ import { ArrowLeft, Lock, Mail, User } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -20,10 +22,10 @@ export default function SignUpScreen() {
   const { signUp, isLoading } = useAuth();
 
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
+    name: 'yusef',
+    email: 'yusf.works@gmail.com',
+    password: 'P@ssw0rd_ze',
+    confirmPassword: 'P@ssw0rd_ze',
   });
 
   const handleSignUp = async () => {
@@ -67,7 +69,12 @@ export default function SignUpScreen() {
           headerShown: false,
         }}
       />
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      >
+        <ScrollView contentContainerStyle={styles.contentContainer}>
         <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <ArrowLeft size={24} color={colors.text} />
@@ -157,7 +164,8 @@ export default function SignUpScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </>
   );
 }

@@ -64,15 +64,30 @@ export class TokenService {
    */
   async getAccessToken(): Promise<string | null> {
     try {
+      let token: string | null = null;
+      
       if (this.isSecureStorageAvailable) {
-        return await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
+        console.log("Checking SecureStore for access token");
+        token = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
       } else {
-        return await AsyncStorage.getItem(ACCESS_TOKEN_KEY);
+        console.log("Checking AsyncStorage for access token");
+        token = await AsyncStorage.getItem(ACCESS_TOKEN_KEY);
       }
+      
+      console.log("Token retrieval result:", token ? `Token available (${token.length} chars)` : "No token available");
+      return token;
     } catch (error) {
       console.error('Error retrieving access token:', error);
       return null;
     }
+  }
+
+  /**
+   * Check if access token is available
+   */
+  async hasAccessToken(): Promise<boolean> {
+    const token = await this.getAccessToken();
+    return token !== null && token.trim() !== '';
   }
 
   /**
@@ -130,21 +145,24 @@ export class TokenService {
   }
 
   /**
-   * Check if token is expired
+   * Check if token is expired - DEPRECATED: Use backend validation instead
+   * This is kept for backward compatibility but should not be used for authentication decisions
    */
   async isTokenExpired(): Promise<boolean> {
+    console.warn('isTokenExpired is deprecated. Use backend validation via /api/v1/users/me instead.');
     const expiry = await this.getTokenExpiry();
     if (!expiry) return true;
 
-    // Add 5-minute buffer for network delays
     const currentTime = Math.floor(Date.now() / 1000);
     return expiry <= currentTime + 300; // 5 minutes buffer
   }
 
   /**
-   * Check if token will expire soon (within 15 minutes)
+   * Check if token will expire soon - DEPRECATED: Use backend validation instead
+   * This is kept for backward compatibility but should not be used for authentication decisions
    */
   async isTokenExpiringSoon(): Promise<boolean> {
+    console.warn('isTokenExpiringSoon is deprecated. Use backend validation via /api/v1/users/me instead.');
     const expiry = await this.getTokenExpiry();
     if (!expiry) return true;
 
@@ -202,16 +220,6 @@ export class TokenService {
     if (!accessToken) return null;
 
     return this.decodeToken(accessToken);
-  }
-
-  /**
-   * Check if user is authenticated (has valid token)
-   */
-  async isAuthenticated(): Promise<boolean> {
-    const accessToken = await this.getAccessToken();
-    if (!accessToken) return false;
-
-    return !(await this.isTokenExpired());
   }
 }
 

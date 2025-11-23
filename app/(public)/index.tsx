@@ -9,11 +9,13 @@ import {
   Bike,
   Bluetooth,
   Droplet,
+  Footprints,
   Heart,
   HeartCrack,
   LogIn,
   MoonStarIcon,
   RefreshCw,
+  StepBack,
   Thermometer,
   UserPlus
 } from "lucide-react-native";
@@ -22,6 +24,8 @@ import {
   Alert,
   Animated,
   Dimensions,
+  Linking,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -45,7 +49,7 @@ export default function PublicHomeScreen() {
     disconnectFromDevice,
     connectedDevice,
   } = useHealthData();
-  
+
   const {
     allDevices: devices,
     isScanning,
@@ -56,13 +60,20 @@ export default function PublicHomeScreen() {
     bluetoothState,
     checkBluetoothState,
   } = useBle();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const heartBeatAnim = useRef(new Animated.Value(0)).current;
   const [showDeviceModal, setShowDeviceModal] = useState(false);
   const [hasScanError, setHasScanError] = useState(false);
   const [permissionChecked, setPermissionChecked] = useState(false);
   const [scanInitiated, setScanInitiated] = useState(false);
+
+  // Redirect authenticated users to tabs index
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace('/(tabs)');
+    }
+  }, [isAuthenticated, isLoading, router]);
 
   // Start scanning when modal opens (only once per modal session)
   useEffect(() => {
@@ -104,10 +115,10 @@ export default function PublicHomeScreen() {
   useEffect(() => {
     const checkPermissionsOnStart = async () => {
       if (permissionChecked) return;
-      
+
       try {
         console.log("Checking Bluetooth and Location permissions...");
-        
+
         // Check Bluetooth state first
         const isBluetoothEnabled = await checkBluetoothState();
         if (!isBluetoothEnabled) {
@@ -116,7 +127,7 @@ export default function PublicHomeScreen() {
         } else {
           console.log("Bluetooth is enabled");
         }
-        
+
         setPermissionChecked(true);
       } catch (error) {
         console.log("Error checking permissions on start:", error);
@@ -198,6 +209,26 @@ export default function PublicHomeScreen() {
     router.push('/signup');
   };
 
+  const openBluetoothSettings = async () => {
+    if (Platform.OS === 'android') {
+      // Opens directly to Bluetooth settings on Android
+      try {
+        await Linking.sendIntent('android.settings.BLUETOOTH_SETTINGS');
+      } catch (error) {
+        Alert.alert('Error', 'Cannot open Bluetooth settings');
+      }
+    } else {
+      // iOS: Opens App Settings (Safe for App Store)
+      // Users must navigate manually to Bluetooth from here if needed.
+      Linking.openSettings();
+
+      /* NOTE: You can use Linking.openURL('App-Prefs:Bluetooth') for a direct link, 
+      BUT using 'App-Prefs' is a private API and typically leads to 
+      App Store Rejection. Use only for internal/enterprise apps.
+      */
+    }
+  };
+
   return (
     <>
       <ScrollView
@@ -215,6 +246,25 @@ export default function PublicHomeScreen() {
             <TouchableOpacity
               style={styles.statusContainer}
               onPress={() => {
+                if (bluetoothState === 'PoweredOff') {
+                  Alert.alert(
+                    "Bluetooth required",
+                    "Please enable Bluetooth to connect to your device.",
+                    [
+                      {
+                        text: "Cancel", style: "cancel", onPress: () => {return;}
+                      },
+                      {
+                        text: "Open Settings", onPress: async () => {
+                          // Open device Bluetooth settings
+                          // Note: This requires additional implementation depending on the platform
+                          await openBluetoothSettings();
+                        }
+                      }
+                    ]
+                  );
+                  return;
+                }
                 if (isConnected) {
                   Alert.alert(
                     "Disconnect Device",
@@ -233,24 +283,31 @@ export default function PublicHomeScreen() {
                 }
               }}
             >
-              <Text style={styles.statusText}>
-                {isConnected ? "Connected" : "Tap to Connect"}
-              </Text>
-              {!isConnected && (
-                <Bluetooth
-                  size={16}
-                  color={colors.primary}
-                  style={styles.bluetoothIcon}
-                />
-              )}
+              {
+                bluetoothState === 'PoweredOff' ? (
+                  <View style={styles.permissionWarning}>
+                    <Text style={styles.permissionWarningText}>
+                      Activate Bluetooth
+                    </Text>
+                  </View>
+                ) : (
+                  <>
+                    <Text style={styles.statusText}>
+                      {isConnected ? "Connected" : "Tap to Connect"}
+                    </Text>
+                    {!isConnected && (
+                      <Bluetooth
+                        size={16}
+                        color={colors.primary}
+                        style={styles.bluetoothIcon}
+                      />
+                    )}
+                  </>
+                )
+              }
+
             </TouchableOpacity>
-            {!isConnected && bluetoothState === 'PoweredOff' && (
-              <View style={styles.permissionWarning}>
-                <Text style={styles.permissionWarningText}>
-                  Bluetooth Required
-                </Text>
-              </View>
-            )}
+
           </View>
           <View style={styles.headerRight}>
             {hasAlerts && (
@@ -362,14 +419,14 @@ export default function PublicHomeScreen() {
 
           <View style={styles.statCard}>
             <View style={[styles.statIcon, { backgroundColor: "#ffe6e6ff" }]}>
-              <Bike size={24} color={colors.danger} />
+              <Footprints size={24} color={colors.danger} />
             </View>
-            <Text style={styles.statLabel}>Acceleration</Text>
+            <Text style={styles.statLabel}>Steps</Text>
             <View style={styles.numUnitWrapper}>
               <Text style={styles.statValue}>
                 {currentData.temperature.toFixed(1)}
               </Text>
-              <Text style={styles.statUnit}>Km</Text>
+              <Text style={styles.statUnit}>steps/H</Text>
             </View>
           </View>
         </View>
@@ -428,7 +485,7 @@ export default function PublicHomeScreen() {
           </View>
         )}
       </ScrollView>
-      
+
       <DeviceModal
         visible={showDeviceModal}
         closeModal={() => setShowDeviceModal(false)}
@@ -707,9 +764,9 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   permissionWarning: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
+    // position: 'absolute',
+    // top: -8,
+    // right: -8,
     backgroundColor: colors.warning,
     borderRadius: 10,
     paddingHorizontal: 6,

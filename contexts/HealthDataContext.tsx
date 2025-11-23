@@ -1,4 +1,4 @@
-import { issueService, metricService, offlineStorageService } from '@/services';
+import { issueService, metricService, offlineStorageService, MetricCreate, MetricType } from '@/services';
 import createContextHook from '@nkzw/create-context-hook';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useBle } from './BleContext';
@@ -8,7 +8,13 @@ export interface HealthData {
   sleepHours: number;
   temperature: number;
   oxygenLevel: number;
+  steps: number;
+  timestamp: number;
   lastUpdated: Date;
+  activityKmh: number;
+  fingerDetected: boolean;
+  sleeping: boolean;
+  idleSeconds: number;
 }
 
 export interface HistoricalData {
@@ -16,6 +22,8 @@ export interface HistoricalData {
   heartRate: number;
   oxygenLevel: number;
   temperature: number;
+  steps: number;
+  sleepHours: number;
 }
 
 export interface UserProfile {
@@ -36,7 +44,13 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
     sleepHours: 0,
     temperature: 0,
     oxygenLevel: 0,
+    steps: 0,
+    timestamp: 0,
     lastUpdated: new Date(),
+    activityKmh: 0,
+    fingerDetected: false,
+    sleeping: false,
+    idleSeconds: 0,
   });
 
   const [historicalData, setHistoricalData] = useState<HistoricalData[]>([]);
@@ -65,10 +79,16 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
     if (bleSensorData && isConnected) {
       const newData: HealthData = {
         heartRate: bleSensorData.heartRate || 0,
-        sleepHours: 7.5, // Default value since BLE doesn't provide sleep data
+        sleepHours: bleSensorData.sleepHours || 0, // Now dynamic from device data
         temperature: bleSensorData.temperature || 0,
         oxygenLevel: bleSensorData.spo2 || 0,
+        steps: bleSensorData.steps || 0,
+        timestamp: bleSensorData.timestamp || Date.now(),
         lastUpdated: new Date(),
+        activityKmh: 0, // Default value, should be calculated from device data
+        fingerDetected: false, // Default value, should come from device data
+        sleeping: false, // Default value, should come from device data
+        idleSeconds: 0, // Default value, should come from device data
       };
 
       setCurrentData(newData);
@@ -81,6 +101,8 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
           heartRate: bleSensorData.heartRate || 0,
           oxygenLevel: bleSensorData.spo2 || 0,
           temperature: bleSensorData.temperature || 0,
+          steps: bleSensorData.steps || 0,
+          sleepHours: bleSensorData.sleepHours || 0,
         });
         
         // Keep only last 24 hours of data
@@ -103,8 +125,10 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
         heartRate: data.heartRate,
         oxygenLevel: data.oxygenLevel,
         temperature: data.temperature,
-        sleepHours: data.sleepHours,
+        steps: data.steps,
+        sleep: data.sleepHours,
         timestamp: timestamp.toISOString(),
+        sensorModel: 'Health-Monitor-Bracelet', // Default sensor model
       });
 
       if (metrics.length > 0) {
@@ -125,8 +149,10 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
           heartRate: data.heartRate,
           oxygenLevel: data.oxygenLevel,
           temperature: data.temperature,
-          sleepHours: data.sleepHours,
+          steps: data.steps,
+          sleep: data.sleepHours,
           timestamp: timestamp.toISOString(),
+          sensorModel: 'Health-Monitor-Bracelet', // Default sensor model
         });
         await offlineStorageService.storeMetrics(metrics);
         console.log('Metrics stored offline as fallback');

@@ -1,71 +1,45 @@
-import { ApiError, apiService, setAuthToken } from './api';
+import { ApiError, apiService, setAuthToken, NetworkError } from './api';
 import { tokenManagerService, TokenValidationCallbacks } from './token-manager.service';
 import { DecodedToken, TokenPair, tokenService } from './token.service';
 
 export interface Token {
   access_token: string;
   token_type: string;
-  expires_in?: number; // Token lifetime in seconds
-  refresh_token?: string; // Refresh token for obtaining new access tokens
 }
 
 export interface LoginCredentials {
-  username: string;
+  email: string;
   password: string;
-  grant_type?: string;
-  scope?: string;
-  client_id?: string;
-  client_secret?: string;
 }
 
-export interface RefreshTokenRequest {
-  refresh_token: string;
-  grant_type?: string;
-  scope?: string;
-  client_id?: string;
-  client_secret?: string;
+export interface EmailVerificationRequest {
+  email: string;
+  verification_code: string;
+}
+
+export interface ResendCodeRequest {
+  email: string;
 }
 
 export class AuthService {
-  private tokenRefreshTimeout: number | null = null;
-  private isRefreshing = false;
-  private refreshPromise: Promise<Token> | null = null;
-
   /**
-   * Login with username and password
+   * Login with email and password using JWT authentication
    */
   async login(credentials: LoginCredentials): Promise<Token> {
     try {
-      const formData = new URLSearchParams();
-      formData.append('username', credentials.username);
-      formData.append('password', credentials.password);
+      const token = await apiService.post<Token>('/api/v1/auth/login', credentials);
+
+      console.log('Login successful, storing token', token);
       
-      if (credentials.grant_type) {
-        formData.append('grant_type', credentials.grant_type);
-      }
-      if (credentials.scope) {
-        formData.append('scope', credentials.scope);
-      }
-      if (credentials.client_id) {
-        formData.append('client_id', credentials.client_id);
-      }
-      if (credentials.client_secret) {
-        formData.append('client_secret', credentials.client_secret);
-      }
-
-      const token = await apiService.post<Token>('/api/v1/token', formData, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      });
-
       await this.setToken(token);
-      this.scheduleTokenRefresh();
       
       return token;
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
-        throw new ApiError('Invalid username or password', 401, 'INVALID_CREDENTIALS');
+        throw new ApiError('Invalid email or password', 401, 'INVALID_CREDENTIALS');
+      }
+      if (error instanceof ApiError && error.status === 403) {
+        throw new ApiError('Email not verified', 403, 'EMAIL_NOT_VERIFIED');
       }
       throw error;
     }
@@ -74,29 +48,44 @@ export class AuthService {
   /**
    * Logout and clear stored tokens
    */
-  async logout(): Promise<void> {14
+  async logout(): Promise<void> {
+    try {
+      // Call logout endpoint if available
+      await apiService.post('/api/v1/auth/logout');
+    } catch (error) {
+      // Continue with logout even if endpoint fails
+      console.warn('Logout endpoint call failed, continuing with client-side logout');
+    }
+    
     // Clear stored tokens
     await tokenService.clearTokens();
     
     // Clear API service token
     setAuthToken(null);
-    
-    // Clear any scheduled refresh
-    if (this.tokenRefreshTimeout) {
-      clearTimeout(this.tokenRefreshTimeout);
-      this.tokenRefreshTimeout = null;
-    }
-
-    // Reset refresh state
-    this.isRefreshing = false;
-    this.refreshPromise = null;
   }
 
   /**
-   * Check if user is authenticated
+   * Check if user is authenticated using token validation
    */
   async isAuthenticated(): Promise<boolean> {
-    return await tokenService.isAuthenticated();
+    try {
+      const accessToken = await tokenService.getAccessToken();
+      if (!accessToken) {
+        return false;
+      }
+      
+      // For JWT tokens, we can validate locally first
+      const userInfo = await tokenService.getUserInfo();
+      if (!userInfo) {
+        return false;
+      }
+      
+      // Token exists and is valid locally
+      return true;
+    } catch (error) {
+      console.error('Error checking authentication:', error);
+      return false;
+    }
   }
 
   /**
@@ -107,88 +96,58 @@ export class AuthService {
   }
 
   /**
-   * Refresh access token using refresh token
+   * Verify user email with verification code
    */
-  async refreshToken(): Promise<Token> {
-    // If already refreshing, return the existing promise
-    if (this.isRefreshing && this.refreshPromise) {
-      return this.refreshPromise;
-    }
-
-    this.isRefreshing = true;
-    
+  async verifyEmail(request: EmailVerificationRequest): Promise<void> {
     try {
-      const refreshToken = await tokenService.getRefreshToken();
-      if (!refreshToken) {
-        throw new ApiError('No refresh token available', 401, 'NO_REFRESH_TOKEN');
-      }
-
-      const refreshRequest: RefreshTokenRequest = {
-        refresh_token: refreshToken,
-        grant_type: 'refresh_token',
-      };
-
-      this.refreshPromise = apiService.post<Token>('/api/v1/token/refresh', refreshRequest);
-
-      const newToken = await this.refreshPromise;
-      await this.setToken(newToken);
-      this.scheduleTokenRefresh();
-
-      return newToken;
+      await apiService.post('/api/v1/auth/verify-email', request);
     } catch (error) {
-      // If refresh fails, clear tokens and throw
-      await this.logout();
+      if (error instanceof ApiError && error.status === 400) {
+        throw new ApiError('Invalid verification code', 400, 'INVALID_VERIFICATION_CODE');
+      }
+      if (error instanceof ApiError && error.status === 404) {
+        throw new ApiError('User not found', 404, 'USER_NOT_FOUND');
+      }
       throw error;
-    } finally {
-      this.isRefreshing = false;
-      this.refreshPromise = null;
     }
   }
 
   /**
-   * Validate current token and refresh if needed
+   * Resend verification code
+   */
+  async resendVerificationCode(request: ResendCodeRequest): Promise<void> {
+    try {
+      await apiService.post('/api/v1/auth/resend-code', request);
+    } catch (error) {
+      // Always return success for security reasons (prevents email enumeration)
+      console.log('Resend code request processed (security policy)');
+    }
+  }
+
+  /**
+   * Validate current token
+   * For JWT tokens, we rely on local validation and let API calls fail naturally
    */
   async validateToken(): Promise<boolean> {
     try {
-      const isExpired = await tokenService.isTokenExpired();
-      
-      if (isExpired) {
-        // Token is expired, try to refresh
-        try {
-          await this.refreshToken();
-          return true;
-        } catch (refreshError) {
-          // Refresh failed, user needs to login again
-          await this.logout();
-          return false;
-        }
+      const accessToken = await tokenService.getAccessToken();
+      if (!accessToken) {
+        return false;
       }
-
-      // Token is valid
-      return true;
+      
+      // For JWT, we can validate locally
+      const userInfo = await tokenService.getUserInfo();
+      return !!userInfo;
     } catch (error) {
       console.error('Error validating token:', error);
-      await this.logout();
       return false;
     }
   }
 
   /**
-   * Get access token, refreshing if necessary
+   * Get access token
    */
   async getAccessToken(): Promise<string | null> {
-    // Check if token is expired or expiring soon
-    const isExpiringSoon = await tokenService.isTokenExpiringSoon();
-    
-    if (isExpiringSoon) {
-      try {
-        await this.refreshToken();
-      } catch (error) {
-        console.error('Failed to refresh token:', error);
-        return null;
-      }
-    }
-
     return await tokenService.getAccessToken();
   }
 
@@ -196,17 +155,22 @@ export class AuthService {
    * Set token and store securely
    */
   private async setToken(token: Token): Promise<void> {
-    // Calculate expiration time (default to 1 hour if not provided)
-    const expiresIn = token.expires_in || 3600; // 1 hour default
-    const issuedAt = Math.floor(Date.now() / 1000);
-    const expiresAt = issuedAt + expiresIn;
+    // Validate required fields
+    if (!token.access_token) {
+      throw new Error('Access token is required');
+    }
 
-    // Create token pair for secure storage
+    console.log('Storing token:', {
+      hasAccessToken: !!token.access_token,
+      tokenType: token.token_type
+    });
+
+    // Create token pair for secure storage (JWT doesn't use refresh tokens)
     const tokenPair: TokenPair = {
       accessToken: token.access_token,
-      refreshToken: token.refresh_token || '',
-      expiresAt,
-      issuedAt,
+      refreshToken: '', // JWT doesn't use refresh tokens
+      expiresAt: 0, // JWT expiration is handled by the token itself
+      issuedAt: Math.floor(Date.now() / 1000),
     };
 
     // Store tokens securely
@@ -217,66 +181,40 @@ export class AuthService {
   }
 
   /**
-   * Schedule token refresh before expiration
-   */
-  private async scheduleTokenRefresh(): Promise<void> {
-    // Clear any existing timeout
-    if (this.tokenRefreshTimeout) {
-      clearTimeout(this.tokenRefreshTimeout);
-      this.tokenRefreshTimeout = null;
-    }
-
-    const expiry = await tokenService.getTokenExpiry();
-    if (!expiry) return;
-
-    // Calculate when to refresh (5 minutes before expiration)
-    const currentTime = Math.floor(Date.now() / 1000);
-    const refreshTime = expiry - 300; // 5 minutes before expiry
-    const timeUntilRefresh = Math.max(0, (refreshTime - currentTime) * 1000);
-
-    // Schedule refresh
-    if (timeUntilRefresh > 0) {
-      this.tokenRefreshTimeout = setTimeout(async () => {
-        try {
-          await this.refreshToken();
-        } catch (error) {
-          console.error('Scheduled token refresh failed:', error);
-          // Don't logout here, let the next API request handle it
-        }
-      }, timeUntilRefresh);
-    }
-  }
-
-  /**
    * Initialize authentication state on app start
    */
   async initialize(): Promise<boolean> {
     try {
-      const isAuthenticated = await this.isAuthenticated();
+      // First, try to get token from storage
+      const accessToken = await tokenService.getAccessToken();
+      console.log('Token initialization - access token available:', !!accessToken);
       
-      if (isAuthenticated) {
+      if (accessToken) {
         // Set token in API service
-        const accessToken = await tokenService.getAccessToken();
-        if (accessToken) {
-          setAuthToken(accessToken);
-          this.scheduleTokenRefresh();
+        setAuthToken(accessToken);
+        console.log('Token set in API service for initialization');
+        
+        // Validate the token locally
+        const isAuthenticated = await this.isAuthenticated();
+        
+        if (isAuthenticated) {
+          console.log('Authentication initialized successfully');
+          return true;
+        } else {
+          // Token exists but is invalid
+          console.log('Token exists but validation failed');
+          await this.logout();
+          return false;
         }
-        return true;
+      } else {
+        // No token available
+        console.log('No access token available for initialization');
+        return false;
       }
-      
-      return false;
     } catch (error) {
       console.error('Error initializing authentication:', error);
-      await this.logout();
       return false;
     }
-  }
-
-  /**
-   * Check if token refresh is in progress
-   */
-  isRefreshingToken(): boolean {
-    return this.isRefreshing;
   }
 }
 
@@ -286,7 +224,6 @@ export const authService = new AuthService();
 // Register token validation callbacks with the token manager
 const callbacks: TokenValidationCallbacks = {
   validateToken: () => authService.validateToken(),
-  refreshToken: () => authService.refreshToken(),
   logout: () => authService.logout(),
   getAccessToken: () => authService.getAccessToken(),
 };

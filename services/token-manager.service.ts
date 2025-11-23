@@ -1,9 +1,8 @@
-// Token Manager Service - Handles token validation and refresh callbacks
+// Token Manager Service - Handles token validation callbacks
 // This service breaks the circular dependency between api.ts and auth.service.ts
 
 export interface TokenValidationCallbacks {
   validateToken: () => Promise<boolean>;
-  refreshToken: () => Promise<any>; // Can return any type, we just need to await it
   logout: () => Promise<void>;
   getAccessToken: () => Promise<string | null>;
 }
@@ -27,16 +26,6 @@ class TokenManagerService {
       return false;
     }
     return this.callbacks.validateToken();
-  }
-
-  /**
-   * Refresh token using registered callbacks
-   */
-  async refreshToken(): Promise<void> {
-    if (!this.callbacks) {
-      throw new Error('Token refresh callbacks not registered');
-    }
-    await this.callbacks.refreshToken();
   }
 
   /**

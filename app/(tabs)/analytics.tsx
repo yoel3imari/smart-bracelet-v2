@@ -2,7 +2,7 @@ import colors from "@/constants/colors";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHealthData } from "@/contexts/HealthDataContext";
 import { useRouter } from "expo-router";
-import { Download, TrendingUp } from "lucide-react-native";
+import { Download, TrendingUp, Moon, Footprints, Timer, Zap, Fingerprint } from "lucide-react-native";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -29,6 +29,17 @@ export default function AnalyticsScreen() {
   const { isAuthenticated, isLoading } = useAuth();
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("daily");
 
+  const filteredData = useMemo(() => {
+    const now = new Date();
+    let hoursBack = 24;
+
+    if (timeFilter === "weekly") hoursBack = 24 * 7;
+    if (timeFilter === "monthly") hoursBack = 24 * 30;
+
+    const cutoff = new Date(now.getTime() - hoursBack * 60 * 60 * 1000);
+    return historicalData.filter((d) => d.timestamp >= cutoff);
+  }, [historicalData, timeFilter]);
+
   // Redirect to signin if not authenticated
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -50,17 +61,6 @@ export default function AnalyticsScreen() {
   if (!isAuthenticated) {
     return null;
   }
-
-  const filteredData = useMemo(() => {
-    const now = new Date();
-    let hoursBack = 24;
-
-    if (timeFilter === "weekly") hoursBack = 24 * 7;
-    if (timeFilter === "monthly") hoursBack = 24 * 30;
-
-    const cutoff = new Date(now.getTime() - hoursBack * 60 * 60 * 1000);
-    return historicalData.filter((d) => d.timestamp >= cutoff);
-  }, [historicalData, timeFilter]);
 
   const renderChart = (
     data: number[],
@@ -214,6 +214,42 @@ export default function AnalyticsScreen() {
           colors.success,
           90,
           100
+        )}
+
+        {renderChart(
+          filteredData.map((d) => d.activityKmh),
+          "Activity Speed",
+          "km/h",
+          colors.primary,
+          0,
+          25
+        )}
+
+        {renderChart(
+          filteredData.map((d) => d.steps),
+          "Step Count",
+          "steps",
+          colors.success,
+          0,
+          Math.max(1000, ...filteredData.map(d => d.steps))
+        )}
+
+        {renderChart(
+          filteredData.map((d) => d.sleepHours),
+          "Sleep Hours",
+          "hours",
+          colors.secondary,
+          0,
+          12
+        )}
+
+        {renderChart(
+          filteredData.map((d) => d.idleSeconds / 60), // Convert to minutes
+          "Idle Time",
+          "minutes",
+          colors.warning,
+          0,
+          120
         )}
 
         {renderChart(

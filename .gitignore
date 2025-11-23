@@ -42,3 +42,4 @@ app-example
 # generated native folders
 /ios
 /android
+docs/API_COMPATIBILITY_VERIFICATION_REPORT.md

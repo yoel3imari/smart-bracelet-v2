@@ -1,11 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { MetricBase } from './metric.service';
+import { MetricCreate } from './metric.service';
 import { networkService, NetworkService } from './network.service';
 import { queueService, QueueService } from './queue.service';
+import { deviceService } from './device.service';
 
 export interface StoredMetric {
   id: string;
-  metric: MetricBase;
+  metric: MetricCreate;
   storedAt: number;
   syncStatus: 'pending' | 'synced' | 'failed';
   syncAttempts: number;
@@ -79,19 +80,24 @@ export class OfflineStorageService {
   /**
    * Store metrics locally
    */
-  async storeMetrics(metrics: MetricBase[]): Promise<void> {
+  async storeMetrics(metrics: MetricCreate[]): Promise<void> {
     if (!this.isInitialized) {
       await this.initialize();
     }
 
     if (metrics.length === 0) return;
 
+    // Get current device ID for offline storage
+    const currentDevice = deviceService.getCurrentDevice();
+    const deviceId = currentDevice?.id;
+
     const storedMetrics: StoredMetric[] = metrics.map(metric => ({
       id: this.generateId(),
       metric,
       storedAt: Date.now(),
       syncStatus: 'pending',
-      syncAttempts: 0
+      syncAttempts: 0,
+      deviceId
     }));
 
     // Add to local storage
@@ -102,13 +108,16 @@ export class OfflineStorageService {
     if (this.networkManager.isOnline()) {
       await this.queueManager.enqueue({
         type: 'metric_batch',
-        payload: { metrics: storedMetrics.map(sm => sm.metric) },
+        payload: {
+          metrics: storedMetrics.map(sm => sm.metric),
+          device_id: deviceId
+        },
         priority: 'normal',
         maxAttempts: 5
       });
     }
 
-    console.log(`Stored ${metrics.length} metrics offline`);
+    console.log(`Stored ${metrics.length} metrics offline${deviceId ? ` for device ${deviceId}` : ''}`);
   }
 
   /**

@@ -3,6 +3,8 @@ import {
   View,
   Text,
   StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   TextInput,
   TouchableOpacity,
@@ -20,8 +22,8 @@ export default function SignInScreen() {
   const { signIn, isLoading } = useAuth();
 
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
+    email: 'yusf.works@gmail.com',
+    password: 'P@ssw0rd_ze',
   });
 
   const handleSignIn = async () => {
@@ -30,6 +32,8 @@ export default function SignInScreen() {
       return;
     }
 
+    console.log(formData);
+    
     const result = await signIn(formData.email, formData.password);
     
     if (result.success) {
@@ -49,7 +53,12 @@ export default function SignInScreen() {
           headerShown: false,
         }}
       />
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      >
+        <ScrollView contentContainerStyle={styles.contentContainer}>
         <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.push("/(public)")}>
             <ArrowLeft size={24} color={colors.text} />
@@ -108,7 +117,8 @@ export default function SignInScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </>
   );
 }

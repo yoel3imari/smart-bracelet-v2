@@ -2,17 +2,86 @@ import colors from '@/constants/colors';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHealthData } from '@/contexts/HealthDataContext';
 import { useRouter } from 'expo-router';
-import { Bluetooth, Edit2, LogOut, Save, X } from 'lucide-react-native';
+import { Bluetooth, Edit2, LogOut, Save, X, ChevronDown, Moon } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type TabType = 'profile' | 'medical';
 
+// Custom Dropdown Component
+interface DropdownOption {
+  label: string;
+  value: string;
+}
+
+interface DropdownProps {
+  options: DropdownOption[];
+  value: string;
+  onValueChange: (value: string) => void;
+  placeholder?: string;
+  style?: any;
+}
+
+const Dropdown: React.FC<DropdownProps> = ({ options, value, onValueChange, placeholder, style }) => {
+  const [isVisible, setIsVisible] = useState(false);
+
+  const selectedOption = options.find(option => option.value === value);
+  const displayText = selectedOption ? selectedOption.label : placeholder || 'Select an option';
+
+  return (
+    <View style={[styles.dropdownContainer, style]}>
+      <TouchableOpacity
+        style={styles.dropdownButton}
+        onPress={() => setIsVisible(!isVisible)}
+      >
+        <Text style={[styles.dropdownText, !selectedOption && styles.dropdownPlaceholder]}>
+          {displayText}
+        </Text>
+        <ChevronDown
+          size={16}
+          color={colors.textMuted}
+          style={[styles.dropdownIcon, isVisible && styles.dropdownIconRotated]}
+        />
+      </TouchableOpacity>
+
+      <Modal visible={isVisible} transparent animationType="none">
+        <TouchableOpacity
+          style={styles.dropdownOverlay}
+          onPress={() => setIsVisible(false)}
+        >
+          <View style={styles.dropdownList}>
+            {options.map((option) => (
+              <TouchableOpacity
+                key={option.value}
+                style={styles.dropdownItem}
+                onPress={() => {
+                  onValueChange(option.value);
+                  setIsVisible(false);
+                }}
+              >
+                <Text style={[
+                  styles.dropdownItemText,
+                  option.value === value && styles.dropdownItemTextSelected
+                ]}>
+                  {option.label}
+                </Text>
+                {option.value === value && (
+                  <View style={styles.dropdownCheckmark} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </View>
+  );
+};
+
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { userProfile, updateUserProfile } = useHealthData();
+  const { userProfile, updateUserProfile, currentData } = useHealthData();
   const { user, signOut, updateUser, isAuthenticated, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('profile');
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -22,6 +91,27 @@ export default function ProfileScreen() {
     email: user?.email || '',
     password: '',
   });
+
+  // Medical conditions and allergies options
+  const medicalConditionsOptions: DropdownOption[] = [
+    { label: 'None', value: 'none' },
+    { label: 'Diabetes', value: 'diabetes' },
+    { label: 'Hypertension', value: 'hypertension' },
+    { label: 'Asthma', value: 'asthma' },
+    { label: 'Heart Disease', value: 'heart_disease' },
+    { label: 'Arthritis', value: 'arthritis' },
+    { label: 'Other', value: 'other' },
+  ];
+
+  const allergiesOptions: DropdownOption[] = [
+    { label: 'None', value: 'none' },
+    { label: 'Penicillin', value: 'penicillin' },
+    { label: 'Pollen', value: 'pollen' },
+    { label: 'Nuts', value: 'nuts' },
+    { label: 'Shellfish', value: 'shellfish' },
+    { label: 'Latex', value: 'latex' },
+    { label: 'Other', value: 'other' },
+  ];
 
   // Redirect to signin if not authenticated
   useEffect(() => {
@@ -48,7 +138,7 @@ export default function ProfileScreen() {
   const handleSave = () => {
     // Update user profile data
     updateUserProfile(editedProfile);
-    
+
     // Update user data (name and email)
     if (editedUser.name && editedUser.email) {
       updateUser({
@@ -56,7 +146,7 @@ export default function ProfileScreen() {
         email: editedUser.email,
       });
     }
-    
+
     setIsEditing(false);
     Alert.alert('Success', 'Profile updated successfully');
   };
@@ -72,7 +162,12 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+    >
+      <ScrollView contentContainerStyle={styles.contentContainer}>
         <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
           <Text style={styles.headerTitle}>Profile</Text>
           <View style={styles.headerActions}>
@@ -145,24 +240,55 @@ export default function ProfileScreen() {
                 </View>
               </View>
             ) : (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Connected Devices</Text>
-                <View style={styles.deviceCard}>
-                  <View style={styles.deviceIcon}>
-                    <Bluetooth size={24} color={colors.primary} />
-                  </View>
-                  <View style={styles.deviceInfo}>
-                    <Text style={styles.deviceName}>MedBand Pro X</Text>
-                    <Text style={styles.deviceStatus}>Connected • Battery 87%</Text>
+              <>
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Connected Devices</Text>
+                  <View style={styles.deviceCard}>
+                    <View style={styles.deviceIcon}>
+                      <Bluetooth size={24} color={colors.primary} />
+                    </View>
+                    <View style={styles.deviceInfo}>
+                      <Text style={styles.deviceName}>MedBand Pro X</Text>
+                      <Text style={styles.deviceStatus}>Connected • Battery 87%</Text>
+                    </View>
                   </View>
                 </View>
-              </View>
+
+
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Sleep Summary</Text>
+                  <View style={styles.sleepCard}>
+                    <View style={styles.sleepHeader}>
+                      <Moon size={24} color={currentData?.sleeping ? colors.secondary : colors.primary} />
+                      <Text style={styles.sleepTitle}>
+                        {currentData?.sleeping ? "Currently Sleeping" : "Sleep Tracking"}
+                      </Text>
+                    </View>
+                    <View style={styles.sleepStats}>
+                      <View style={styles.sleepStat}>
+                        <Text style={styles.sleepStatValue}>
+                          {currentData?.sleeping ? "😴" : (currentData?.sleepHours || 0).toFixed(1)}
+                        </Text>
+                        <Text style={styles.sleepStatLabel}>
+                          {currentData?.sleeping ? "Status" : "Hours Today"}
+                        </Text>
+                      </View>
+                      <View style={styles.sleepStat}>
+                        <Text style={styles.sleepStatValue}>
+                          {currentData?.sleeping ? "Deep" : "Active"}
+                        </Text>
+                        <Text style={styles.sleepStatLabel}>State</Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              </>
             )}
           </View>
         ) : (
           <View style={styles.content}>
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Basic Information</Text>
+              <Text style={styles.sectionTitle}>Information</Text>
               {isEditing ? (
                 <View style={styles.inputRow}>
                   <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
@@ -187,13 +313,13 @@ export default function ProfileScreen() {
                 </View>
               ) : (
                 <View style={styles.infoCard}>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Age:</Text>
-                    <Text style={styles.infoValue}>{userProfile.age} years</Text>
+                  <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+                    <Text style={styles.inputLabel}>Age</Text>
+                    <Text style={styles.value}>{userProfile.age} years</Text>
                   </View>
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Gender:</Text>
-                    <Text style={styles.infoValue}>{userProfile.gender}</Text>
+                  <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
+                    <Text style={styles.inputLabel}>Gender</Text>
+                    <Text style={styles.value}>{userProfile.gender}</Text>
                   </View>
                 </View>
               )}
@@ -218,22 +344,28 @@ export default function ProfileScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Medical Conditions</Text>
               {isEditing ? (
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  value={editedProfile.conditions.join(', ')}
-                  onChangeText={(text) =>
-                    setEditedProfile({ ...editedProfile, conditions: text.split(',').map((s) => s.trim()) })
+                <Dropdown
+                  options={medicalConditionsOptions}
+                  value={editedProfile.conditions.length > 0 ? editedProfile.conditions[0] : 'none'}
+                  onValueChange={(value) =>
+                    setEditedProfile({
+                      ...editedProfile,
+                      conditions: value === 'none' ? [] : [value === 'other' ? 'Other' : medicalConditionsOptions.find(opt => opt.value === value)?.label || value]
+                    })
                   }
-                  placeholder="Conditions (comma separated)"
-                  multiline
+                  placeholder="Select medical condition"
                 />
               ) : (
                 <View style={styles.infoCard}>
-                  {userProfile.conditions.map((condition, index) => (
-                    <View key={index} style={styles.badge}>
-                      <Text style={styles.badgeText}>{condition}</Text>
-                    </View>
-                  ))}
+                  {userProfile.conditions.length > 0 ? (
+                    userProfile.conditions.map((condition, index) => (
+                      <View key={index} style={styles.badge}>
+                        <Text style={styles.badgeText}>{condition}</Text>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={styles.infoValue}>None</Text>
+                  )}
                 </View>
               )}
             </View>
@@ -241,22 +373,28 @@ export default function ProfileScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Allergies</Text>
               {isEditing ? (
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  value={editedProfile.allergies.join(', ')}
-                  onChangeText={(text) =>
-                    setEditedProfile({ ...editedProfile, allergies: text.split(',').map((s) => s.trim()) })
+                <Dropdown
+                  options={allergiesOptions}
+                  value={editedProfile.allergies.length > 0 ? editedProfile.allergies[0] : 'none'}
+                  onValueChange={(value) =>
+                    setEditedProfile({
+                      ...editedProfile,
+                      allergies: value === 'none' ? [] : [value === 'other' ? 'Other' : allergiesOptions.find(opt => opt.value === value)?.label || value]
+                    })
                   }
-                  placeholder="Allergies (comma separated)"
-                  multiline
+                  placeholder="Select allergy"
                 />
               ) : (
                 <View style={styles.infoCard}>
-                  {userProfile.allergies.map((allergy, index) => (
-                    <View key={index} style={[styles.badge, styles.badgeDanger]}>
-                      <Text style={[styles.badgeText, styles.badgeTextDanger]}>{allergy}</Text>
-                    </View>
-                  ))}
+                  {userProfile.allergies.length > 0 ? (
+                    userProfile.allergies.map((allergy, index) => (
+                      <View key={index} style={[styles.badge, styles.badgeDanger]}>
+                        <Text style={[styles.badgeText, styles.badgeTextDanger]}>{allergy}</Text>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={styles.infoValue}>None</Text>
+                  )}
                 </View>
               )}
             </View>
@@ -292,7 +430,8 @@ export default function ProfileScreen() {
             )}
           </View>
         )}
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -552,5 +691,220 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600' as const,
     color: colors.danger,
+  },
+  // Dropdown styles
+  dropdownContainer: {
+    position: 'relative',
+    zIndex: 1000,
+  },
+  dropdownButton: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  dropdownText: {
+    flex: 1,
+    fontSize: 16,
+    color: colors.text,
+  },
+  dropdownPlaceholder: {
+    color: colors.textMuted,
+  },
+  dropdownIcon: {
+    marginLeft: 8,
+  },
+  dropdownIconRotated: {
+    transform: [{ rotate: '180deg' }],
+  },
+  dropdownOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  dropdownList: {
+    position: 'absolute',
+    top: '50%',
+    left: 20,
+    right: 20,
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    maxHeight: 200,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  dropdownItemText: {
+    flex: 1,
+    fontSize: 16,
+    color: colors.text,
+  },
+  dropdownItemTextSelected: {
+    color: colors.primary,
+    fontWeight: '600' as const,
+  },
+  dropdownCheckmark: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
+  },
+  infoCard2: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between', // Pushes Label left, Value right
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  line: {
+    height: 1,
+    backgroundColor: '#f0f0f0',
+    width: '100%',
+  },
+  label: {
+    fontSize: 16,
+    color: '#666',
+  },
+  value: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+  },
+  // Device Status Styles
+  statusGrid: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  statusCard: {
+    flex: 1,
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  statusIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  statusLabel: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginBottom: 4,
+    fontWeight: '500' as const,
+  },
+  statusValue: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    textAlign: 'center',
+  },
+  // Activity Summary Styles
+  summaryGrid: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  summaryCard: {
+    flex: 1,
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  summaryIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginBottom: 4,
+    fontWeight: '500' as const,
+    textAlign: 'center',
+  },
+  summaryValue: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  // Sleep Summary Styles
+  sleepCard: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  sleepHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sleepTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: colors.text,
+    marginLeft: 12,
+  },
+  sleepStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  sleepStat: {
+    alignItems: 'center',
+  },
+  sleepStatValue: {
+    fontSize: 24,
+    fontWeight: '700' as const,
+    color: colors.text,
+    marginBottom: 4,
+  },
+  sleepStatLabel: {
+    fontSize: 12,
+    color: colors.textMuted,
+    fontWeight: '500' as const,
   },
 });

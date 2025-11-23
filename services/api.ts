@@ -8,11 +8,11 @@ export interface ApiConfig {
 }
 
 export interface ApiErrorResponse {
-  detail?: Array<{
+  detail?: {
     loc: (string | number)[];
     msg: string;
     type: string;
-  }>;
+  }[] | string;
   message?: string;
 }
 
@@ -55,18 +55,34 @@ const defaultConfig: ApiConfig = {
 
 // Token storage (in a real app, use secure storage)
 let authToken: string | null = null;
-let apiKey: string | null = null;
 
 export const setAuthToken = (token: string | null) => {
   authToken = token;
 };
 
-export const setApiKey = (key: string | null) => {
-  apiKey = key;
+export const getAuthToken = (): string | null => authToken;
+
+/**
+ * Get authentication headers - JWT Bearer tokens are supported
+ */
+export const getAuthHeaders = (): Record<string, string> => {
+  const headers: Record<string, string> = {};
+  
+  if (authToken) {
+    headers['Authorization'] = `Bearer ${authToken}`;
+  } else {
+    console.warn('JWT Bearer authentication requested but no auth token available - API calls may fail');
+  }
+  
+  return headers;
 };
 
-export const getAuthToken = (): string | null => authToken;
-export const getApiKey = (): string | null => apiKey;
+/**
+ * Check if authentication token is available in API service
+ */
+export const isAuthTokenAvailable = (): boolean => {
+  return authToken !== null && authToken.trim() !== '';
+};
 
 // Main API service class
 export class ApiService {
@@ -79,54 +95,27 @@ export class ApiService {
   private async request<T>(
     endpoint: string,
     options: RequestInit = {},
-    retryCount = 0,
-    isRetryAfterAuth = false
+    retryCount = 0
   ): Promise<T> {
     const url = `${this.config.baseURL}${endpoint}`;
-    
-    // Get current access token
-    let currentAuthToken = authToken;
-    
-    // If we have an auth token and this is not a retry after auth refresh,
-    // ensure it's valid before making the request
-    if (currentAuthToken && !isRetryAfterAuth && tokenManagerService.isInitialized()) {
-      try {
-        const isValid = await tokenManagerService.validateToken();
-        if (!isValid) {
-          throw new ApiError('Authentication required', 401, 'AUTH_REQUIRED');
-        }
-        
-        // Get the latest token after validation (might have been refreshed)
-        currentAuthToken = await tokenManagerService.getAccessToken();
-      } catch (error) {
-        // If token validation fails, clear auth and re-throw
-        if (error instanceof ApiError && error.status === 401) {
-          await tokenManagerService.logout();
-        }
-        throw error;
-      }
-    }
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...(options.headers as Record<string, string>),
     };
 
-    // Add authentication headers
-    if (currentAuthToken) {
-      headers['Authorization'] = `Bearer ${currentAuthToken}`;
-    }
-    
-    // Add API key header for device-specific endpoints
-    if (apiKey) {
-      headers['X-API-KEY'] = apiKey;
-    }
+    // Add authentication headers (JWT Bearer only)
+    const authHeaders = getAuthHeaders();
+    Object.assign(headers, authHeaders);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
 
     try {
-      console.log(url);
+      console.log(options.method + " => " + url);
+      if (options.body) {
+        console.log("Body: ", options.body);
+      }
       
       const response = await fetch(url, {
         ...options,
@@ -147,13 +136,7 @@ export class ApiService {
 
         // Handle specific HTTP status codes
         if (response.status === 401) {
-          // Unauthorized - try to refresh token if this is the first attempt
-          if (!isRetryAfterAuth && tokenManagerService.isInitialized() && await this.handleUnauthorizedError()) {
-            // Retry the request with new token
-            return this.request<T>(endpoint, options, retryCount, true);
-          }
-          
-          // If refresh failed or this is already a retry, logout and throw
+          // Unauthorized - logout and throw
           if (tokenManagerService.isInitialized()) {
             await tokenManagerService.logout();
           }
@@ -174,13 +157,10 @@ export class ApiService {
         }
       }
 
-      // Handle empty responses
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        return await response.json();
-      }
+      const data = await response.json();
+      console.log("GOT: ", data);
       
-      return {} as T;
+      return data as T;
 
     } catch (error) {
       clearTimeout(timeoutId);
@@ -189,10 +169,10 @@ export class ApiService {
       if (error instanceof TypeError && error.message.includes('Network request failed')) {
         if (retryCount < this.config.retryAttempts) {
           // Exponential backoff
-          await new Promise(resolve => 
+          await new Promise(resolve =>
             setTimeout(resolve, Math.pow(2, retryCount) * 1000)
           );
-          return this.request<T>(endpoint, options, retryCount + 1, isRetryAfterAuth);
+          return this.request<T>(endpoint, options, retryCount + 1);
         }
         throw new NetworkError('Network connection failed');
       }
@@ -215,20 +195,6 @@ export class ApiService {
     }
   }
 
-  /**
-   * Handle 401 unauthorized errors by attempting token refresh
-   */
-  private async handleUnauthorizedError(): Promise<boolean> {
-    try {
-      await tokenManagerService.refreshToken();
-      return true;
-    } catch (error) {
-      console.error('Token refresh failed:', error);
-    }
-    
-    return false;
-  }
-
   // HTTP method wrappers
   async get<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     return this.request<T>(endpoint, { ...options, method: 'GET' });
@@ -238,7 +204,7 @@ export class ApiService {
     return this.request<T>(endpoint, {
       ...options,
       method: 'POST',
-      body: data ? (typeof data === 'string' ? data : JSON.stringify(data)) : undefined,
+      body: data ? (typeof data === 'string' ? data : data instanceof URLSearchParams ? data.toString() : JSON.stringify(data)) : undefined,
     });
   }
 
@@ -260,18 +226,9 @@ export class ApiService {
   async upload<T>(endpoint: string, formData: FormData, options: RequestInit = {}): Promise<T> {
     const headers: Record<string, string> = {};
     
-    // Add authentication headers
-    const currentAuthToken = tokenManagerService.isInitialized()
-      ? await tokenManagerService.getAccessToken()
-      : null;
-    if (currentAuthToken) {
-      headers['Authorization'] = `Bearer ${currentAuthToken}`;
-    }
-    
-    // Add API key header for device-specific endpoints
-    if (apiKey) {
-      headers['X-API-KEY'] = apiKey;
-    }
+    // Add authentication headers (JWT Bearer only)
+    const authHeaders = getAuthHeaders();
+    Object.assign(headers, authHeaders);
 
     return this.request<T>(endpoint, {
       ...options,

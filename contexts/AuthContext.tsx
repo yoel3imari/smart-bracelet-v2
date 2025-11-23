@@ -1,4 +1,4 @@
-import { authService, LoginCredentials, userService, UserVerifyEmail } from '@/services';
+import { authService, LoginCredentials, EmailVerificationRequest, ResendCodeRequest, userService, UserCreate } from '@/services';
 import createContextHook from '@nkzw/create-context-hook';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -24,21 +24,16 @@ const USER_STORAGE_KEY = '@auth_user';
 export const [AuthProvider, useAuth] = createContextHook(() => {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
-    isAuthenticated: true,
+    isAuthenticated: false,
     isLoading: true,
     isInitialized: false,
   });
-
-  // Load stored user and initialize authentication on app start
-  useEffect(() => {
-    initializeAuth();
-  }, []);
 
   const initializeAuth = useCallback(async () => {
     try {
       // Initialize authentication service
       const isAuthenticated = await authService.initialize();
-      
+      console.log("AuthService initialized, isAuthenticated:", isAuthenticated);
       if (isAuthenticated) {
         // Get user info from token
         const userInfo = await authService.getUserInfo();
@@ -91,6 +86,11 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
   }, []);
 
+  // Load stored user and initialize authentication on app start
+  useEffect(() => {
+    initializeAuth();
+  }, []);
+
   const loadStoredUser = useCallback(async (): Promise<User | null> => {
     try {
       const storedUser = await AsyncStorage.getItem(USER_STORAGE_KEY);
@@ -126,19 +126,21 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const signUp = useCallback(async (email: string, name: string, password: string) => {
     try {
-      // Create new user using user service
-      const userData = await userService.createUser({
+      // Register new user using user service
+      const userData: UserCreate = {
         email,
         name,
         password,
-      });
+      };
 
-      // Create user object from created user data
+      await userService.registerUser(userData);
+
+      // Create user object for local state
       const user: User = {
-        id: userData.id,
-        email: userData.email || email,
-        name: userData.name || name,
-        createdAt: new Date(userData.created_at),
+        id: '', // Will be set after email verification and login
+        email,
+        name,
+        createdAt: new Date(),
         emailVerified: false, // New users need email verification
       };
 
@@ -165,7 +167,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     try {
       // Use real authentication service
       const credentials: LoginCredentials = {
-        username: email,
+        email: email,
         password: password,
       };
 
@@ -251,13 +253,13 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         return { success: false, error: 'No user found' };
       }
 
-      // Call the API to verify email
-      const verifyRequest: UserVerifyEmail = {
+      // Call the API to verify email using auth service
+      const verifyRequest: EmailVerificationRequest = {
         email: authState.user.email,
-        code: code,
+        verification_code: code,
       };
 
-      const verifiedUser = await userService.verifyEmail(verifyRequest);
+      await authService.verifyEmail(verifyRequest);
       
       // Update local user state with verified status
       const updatedUser = { ...authState.user, emailVerified: true };
@@ -281,8 +283,12 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         return { success: false, error: 'No user found' };
       }
 
-      // Call the API to resend verification code
-      await userService.resendVerificationCode(authState.user.email);
+      // Call the API to resend verification code using auth service
+      const resendRequest: ResendCodeRequest = {
+        email: authState.user.email,
+      };
+
+      await authService.resendVerificationCode(resendRequest);
       
       return { success: true };
     } catch (error) {
@@ -295,20 +301,21 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     try {
       if (!authState.user) return;
 
-      // Validate token and refresh if needed
+      // Validate token using JWT validation
       const isValid = await authService.validateToken();
       if (!isValid) {
         await signOut();
         return;
       }
 
-      // Get updated user info from token
+      // For JWT tokens, we rely on the token payload for user info
+      // No need to fetch user data from backend separately
       const userInfo = await authService.getUserInfo();
       if (userInfo && authState.user) {
         const updatedUser = {
           ...authState.user,
-          email: userInfo.email,
-          // Add other fields that might be updated in the token
+          email: userInfo.email || authState.user.email,
+          name: userInfo.name || authState.user.name,
         };
         
         await storeUser(updatedUser);
