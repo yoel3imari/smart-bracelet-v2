@@ -87,16 +87,12 @@ export class QueueService {
   }
 
   /**
-   * Add item to queue
+   * Add item to queue with FIFO management
+   * When queue is full, removes oldest items to make space
    */
   async enqueue(itemData: Omit<QueueItem, 'id' | 'timestamp' | 'attempts' | 'status'>): Promise<string> {
     if (!this.isInitialized) {
       await this.initialize();
-    }
-
-    // Check queue size limit
-    if (this.queue.length >= this.maxSize) {
-      throw new Error('Queue is full. Cannot add more items.');
     }
 
     const item: QueueItem = {
@@ -106,6 +102,21 @@ export class QueueService {
       attempts: 0,
       status: 'pending'
     };
+
+    // Check if we need to make space for new item
+    if (this.queue.length >= this.maxSize) {
+      // Calculate how many items to remove (at least 1)
+      const itemsToRemove = Math.max(1, this.queue.length - this.maxSize + 1);
+      
+      // Remove oldest items (sorted by timestamp ascending)
+      const sortedQueue = [...this.queue].sort((a, b) => a.timestamp - b.timestamp);
+      const itemsToKeep = sortedQueue.slice(itemsToRemove);
+      
+      // Rebuild queue maintaining priority order but removing oldest items
+      this.queue = itemsToKeep;
+      
+      console.log(`FIFO queue management: Removed ${itemsToRemove} oldest items to make space for new item`);
+    }
 
     this.queue.push(item);
     await this.persistQueue();
@@ -299,6 +310,13 @@ export class QueueService {
    */
   getQueueSize(): number {
     return this.queue.length;
+  }
+
+  /**
+   * Get maximum queue size
+   */
+  getMaxQueueSize(): number {
+    return this.maxSize;
   }
 
   /**

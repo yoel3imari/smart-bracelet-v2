@@ -78,7 +78,8 @@ export class OfflineStorageService {
   }
 
   /**
-   * Store metrics locally
+   * Store metrics locally with FIFO management
+   * When storage is full, removes oldest metrics to make space
    */
   async storeMetrics(metrics: MetricCreate[]): Promise<void> {
     if (!this.isInitialized) {
@@ -100,21 +101,42 @@ export class OfflineStorageService {
       deviceId
     }));
 
+    // Check if we need to make space for new metrics
+    const maxMetrics = 1000; // Maximum number of metrics to store locally
+    if (this.metrics.length + storedMetrics.length > maxMetrics) {
+      // Calculate how many metrics to remove
+      const metricsToRemove = Math.max(1, this.metrics.length + storedMetrics.length - maxMetrics);
+      
+      // Remove oldest metrics (sorted by storedAt ascending)
+      const sortedMetrics = [...this.metrics].sort((a, b) => a.storedAt - b.storedAt);
+      const metricsToKeep = sortedMetrics.slice(metricsToRemove);
+      
+      // Rebuild metrics array maintaining order but removing oldest metrics
+      this.metrics = metricsToKeep;
+      
+      console.log(`FIFO storage management: Removed ${metricsToRemove} oldest metrics to make space for ${storedMetrics.length} new metrics`);
+    }
+
     // Add to local storage
     this.metrics.push(...storedMetrics);
     await this.persistMetrics();
 
     // Add to sync queue if online
     if (this.networkManager.isOnline()) {
-      await this.queueManager.enqueue({
-        type: 'metric_batch',
-        payload: {
-          metrics: storedMetrics.map(sm => sm.metric),
-          device_id: deviceId
-        },
-        priority: 'normal',
-        maxAttempts: 5
-      });
+      try {
+        await this.queueManager.enqueue({
+          type: 'metric_batch',
+          payload: {
+            metrics: storedMetrics.map(sm => sm.metric),
+            device_id: deviceId
+          },
+          priority: 'normal',
+          maxAttempts: 5
+        });
+      } catch (error) {
+        // Queue might be full, but we've stored metrics locally
+        console.warn('Failed to add metrics to sync queue, but stored locally:', error);
+      }
     }
 
     console.log(`Stored ${metrics.length} metrics offline${deviceId ? ` for device ${deviceId}` : ''}`);

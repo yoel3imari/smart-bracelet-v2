@@ -424,7 +424,7 @@ export default function PublicHomeScreen() {
             <Text style={styles.statLabel}>Steps</Text>
             <View style={styles.numUnitWrapper}>
               <Text style={styles.statValue}>
-                {currentData.steps.toFixed(1)}
+                {currentData.steps}
               </Text>
               <Text style={styles.statUnit}>steps/H</Text>
             </View>

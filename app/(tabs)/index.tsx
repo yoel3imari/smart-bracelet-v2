@@ -401,7 +401,7 @@ export default function HomeScreen() {
             <Text style={styles.statLabel}>Body Temperature</Text>
             <View style={styles.numUnitWrapper}>
               <Text style={styles.statValue}>
-                {currentData.temperature.toFixed(1)}
+                {currentData.temperature}
               </Text>
               <Text style={styles.statUnit}>°C</Text>
             </View>
