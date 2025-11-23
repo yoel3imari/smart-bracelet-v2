@@ -22,8 +22,8 @@ export default function SignInScreen() {
   const { signIn, isLoading } = useAuth();
 
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
+    email: 'yusf.works@gmail.com',
+    password: 'P@ssw0rd_ze',
   });
 
   const handleSignIn = async () => {

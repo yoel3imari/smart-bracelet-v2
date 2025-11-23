@@ -1,4 +1,4 @@
-import { issueService, metricService, offlineStorageService } from '@/services';
+import { issueService, metricService, offlineStorageService, MetricCreate, MetricType } from '@/services';
 import createContextHook from '@nkzw/create-context-hook';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useBle } from './BleContext';
@@ -125,8 +125,10 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
         heartRate: data.heartRate,
         oxygenLevel: data.oxygenLevel,
         temperature: data.temperature,
-        sleepHours: data.sleepHours,
+        steps: data.steps,
+        sleep: data.sleepHours,
         timestamp: timestamp.toISOString(),
+        sensorModel: 'Health-Monitor-Bracelet', // Default sensor model
       });
 
       if (metrics.length > 0) {
@@ -147,8 +149,10 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
           heartRate: data.heartRate,
           oxygenLevel: data.oxygenLevel,
           temperature: data.temperature,
-          sleepHours: data.sleepHours,
+          steps: data.steps,
+          sleep: data.sleepHours,
           timestamp: timestamp.toISOString(),
+          sensorModel: 'Health-Monitor-Bracelet', // Default sensor model
         });
         await offlineStorageService.storeMetrics(metrics);
         console.log('Metrics stored offline as fallback');

@@ -1,4 +1,4 @@
-import { MetricBatch, metricService } from './metric.service';
+import { MetricBatchCreate, metricService } from './metric.service';
 import { networkService, NetworkService } from './network.service';
 import { offlineStorageService, OfflineStorageService } from './offline-storage.service';
 import { QueueItem, queueService, QueueService } from './queue.service';
@@ -344,14 +344,17 @@ export class SynchronizationService {
    * Process metric batch queue item
    */
   private async processMetricBatch(item: QueueItem): Promise<void> {
-    const { metrics } = item.payload as MetricBatch;
+    const payload = item.payload;
     
-    if (!metrics || !Array.isArray(metrics) || metrics.length === 0) {
+    if (!payload || !Array.isArray(payload.metrics) || payload.metrics.length === 0) {
       throw new Error('Invalid metric batch payload');
     }
 
-    // Send metrics to backend
-    await metricService.createMetricsBatch({ metrics });
+    // Use the new metric batch format (no device_id needed - uses JWT authentication)
+    const metricBatch: MetricBatchCreate = {
+      metrics: payload.metrics
+    };
+    await metricService.createMetricsBatch(metricBatch);
 
     // Update offline storage status if metric IDs are provided
     if (item.metadata?.metricIds) {
@@ -393,7 +396,7 @@ export class SynchronizationService {
           console.error('Background sync failed:', error);
         }
       }
-    }, this.config.syncInterval);
+    }, this.config.syncInterval) as unknown as number;
   }
 
   /**

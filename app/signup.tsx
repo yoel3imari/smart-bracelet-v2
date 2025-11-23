@@ -24,8 +24,8 @@ export default function SignUpScreen() {
   const [formData, setFormData] = useState({
     name: 'yusef',
     email: 'yusf.works@gmail.com',
-    password: '1234567',
-    confirmPassword: '1234567',
+    password: 'P@ssw0rd_ze',
+    confirmPassword: 'P@ssw0rd_ze',
   });
 
   const handleSignUp = async () => {

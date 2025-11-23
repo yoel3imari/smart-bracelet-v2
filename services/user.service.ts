@@ -9,9 +9,6 @@ export interface User {
   updated_at: string;
   email_verified_at?: string;
   deleted_at?: string;
-  devices: Device[];
-  issues: Issue[];
-  metrics: Metric[];
 }
 
 export interface UserCreate {
@@ -27,75 +24,38 @@ export interface UserUpdate {
   password?: string;
 }
 
-export interface UserVerifyEmail {
+export interface EmailVerificationRequest {
   email: string;
-  code: string;
+  verification_code: string;
 }
 
-export interface ForgotPasswordRequest {
+export interface ResendCodeRequest {
   email: string;
-}
-
-export interface ResetPasswordWithCodeRequest {
-  email: string;
-  code: string;
-  new_password: string;
-}
-
-// Import related interfaces (these would be defined in their respective services)
-interface Device {
-  id: string;
-  user_id: string;
-  api_key: string;
-  name?: string;
-  serial_number?: string;
-  model?: string;
-  firmware_version?: string;
-  is_active?: boolean;
-  registered_at?: string;
-  created_at: string;
-  updated_at: string;
-  deleted_at?: string;
-}
-
-interface Issue {
-  id: string;
-  user_id: string;
-  issue_type?: string;
-  description?: string;
-  severity?: 'low' | 'moderate' | 'critical';
-  detected_at?: string;
-  resolved?: boolean;
-  created_at: string;
-  updated_at: string;
-  deleted_at?: string;
-}
-
-interface Metric {
-  id: string;
-  device_id: string;
-  user_id: string;
-  metric_type: string;
-  value?: number;
-  unit?: string;
-  sensor_model?: string;
-  timestamp: string;
-  created_at: string;
 }
 
 export class UserService {
   /**
-   * Create a new user
+   * Register a new user (use auth registration endpoint)
    */
-  async createUser(userData: UserCreate): Promise<User> {
+  async registerUser(userData: UserCreate): Promise<any> {
     try {
-      return await apiService.post<User>('/api/v1/users', userData);
+      return await apiService.post<any>('/api/v1/auth/register', userData);
     } catch (error) {
       if (error instanceof ApiError && error.status === 422) {
-        throw new ValidationError('User creation validation failed', error.details?.detail);
+        throw new ValidationError('User registration validation failed', error.details?.detail);
+      }
+      if (error instanceof ApiError && error.status === 409) {
+        throw new ApiError('User already exists', 409, 'USER_ALREADY_EXISTS');
       }
       throw error;
     }
+  }
+
+  /**
+   * Create a new user (legacy method - use registerUser instead)
+   */
+  async createUser(userData: UserCreate): Promise<any> {
+    return this.registerUser(userData);
   }
 
   /**
@@ -163,79 +123,15 @@ export class UserService {
   }
 
   /**
-   * Verify user email with 6-digit code
-   */
-  async verifyEmail(request: UserVerifyEmail): Promise<User> {
-    try {
-      return await apiService.post<User>('/api/v1/users/verify-email', request);
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 422) {
-        throw new ValidationError('Email verification failed', error.details?.detail);
-      }
-      if (error instanceof ApiError && error.status === 400) {
-        throw new ApiError('Invalid verification code', 400, 'INVALID_VERIFICATION_CODE');
-      }
-      throw error;
-    }
-  }
-
-  /**
-   * Resend email verification code
-   */
-  async resendVerificationCode(email: string): Promise<void> {
-    try {
-      await apiService.post('/api/v1/users/resend-verification', { email });
-    } catch (error) {
-      // Don't reveal if email exists or not for security
-      if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
-        // Silently succeed for security reasons
-        return;
-      }
-      throw error;
-    }
-  }
-
-  /**
-   * Send password reset code
-   */
-  async forgotPassword(request: ForgotPasswordRequest): Promise<void> {
-    try {
-      await apiService.post('/api/v1/users/forgot-password', request);
-    } catch (error) {
-      // Don't reveal if email exists or not for security
-      if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
-        // Silently succeed for security reasons
-        return;
-      }
-      throw error;
-    }
-  }
-
-  /**
-   * Reset password with 6-digit code
-   */
-  async resetPassword(request: ResetPasswordWithCodeRequest): Promise<User> {
-    try {
-      return await apiService.post<User>('/api/v1/users/reset-password', request);
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 422) {
-        throw new ValidationError('Password reset failed', error.details?.detail);
-      }
-      throw error;
-    }
-  }
-
-  /**
    * Get current user (requires authentication)
-   * Uses the /api/v1/users/me endpoint for backend token validation
+   * Note: This endpoint is no longer used for token validation
    */
   async getCurrentUser(): Promise<User> {
     try {
       return await apiService.get<User>('/api/v1/users/me');
     } catch (error) {
-      // If it's a 401 error, just re-throw it as-is - don't create a new error
       if (error instanceof ApiError && error.status === 401) {
-        throw error; // Re-throw the original 401 error
+        throw new ApiError('Authentication required', 401, 'UNAUTHORIZED');
       }
       if (error instanceof ApiError && error.status === 404) {
         throw new ApiError('User not found', 404, 'USER_NOT_FOUND');

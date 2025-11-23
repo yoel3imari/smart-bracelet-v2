@@ -64,20 +64,30 @@ export class TokenService {
    */
   async getAccessToken(): Promise<string | null> {
     try {
+      let token: string | null = null;
+      
       if (this.isSecureStorageAvailable) {
         console.log("Checking SecureStore for access token");
-        return await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
+        token = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
       } else {
         console.log("Checking AsyncStorage for access token");
-        const t = await AsyncStorage.getItem(ACCESS_TOKEN_KEY);
-        console.log("Token: ", t);
-        
-        return t;
+        token = await AsyncStorage.getItem(ACCESS_TOKEN_KEY);
       }
+      
+      console.log("Token retrieval result:", token ? `Token available (${token.length} chars)` : "No token available");
+      return token;
     } catch (error) {
       console.error('Error retrieving access token:', error);
       return null;
     }
+  }
+
+  /**
+   * Check if access token is available
+   */
+  async hasAccessToken(): Promise<boolean> {
+    const token = await this.getAccessToken();
+    return token !== null && token.trim() !== '';
   }
 
   /**

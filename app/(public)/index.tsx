@@ -9,11 +9,13 @@ import {
   Bike,
   Bluetooth,
   Droplet,
+  Footprints,
   Heart,
   HeartCrack,
   LogIn,
   MoonStarIcon,
   RefreshCw,
+  StepBack,
   Thermometer,
   UserPlus
 } from "lucide-react-native";
@@ -417,14 +419,14 @@ export default function PublicHomeScreen() {
 
           <View style={styles.statCard}>
             <View style={[styles.statIcon, { backgroundColor: "#ffe6e6ff" }]}>
-              <Bike size={24} color={colors.danger} />
+              <Footprints size={24} color={colors.danger} />
             </View>
-            <Text style={styles.statLabel}>Acceleration</Text>
+            <Text style={styles.statLabel}>Steps</Text>
             <View style={styles.numUnitWrapper}>
               <Text style={styles.statValue}>
                 {currentData.temperature.toFixed(1)}
               </Text>
-              <Text style={styles.statUnit}>Km</Text>
+              <Text style={styles.statUnit}>steps/H</Text>
             </View>
           </View>
         </View>

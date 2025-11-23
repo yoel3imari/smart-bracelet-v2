@@ -12,6 +12,7 @@ import {
   Footprints,
   Heart,
   HeartCrack,
+  MoonStarIcon,
   RefreshCw,
   Thermometer,
   User
@@ -52,7 +53,6 @@ export default function HomeScreen() {
     isScanning,
     scanForPeripherals: startScan,
     stopScan,
-    connectionError,
     requestPermissions,
     bluetoothState,
     checkBluetoothState,
@@ -232,6 +232,9 @@ export default function HomeScreen() {
                     "Please enable Bluetooth to connect to your device.",
                     [
                       {
+                        text: "Cancel", style: "cancel", onPress: () => { return; }
+                      },
+                      {
                         text: "Open Settings", onPress: async () => {
                           // Open device Bluetooth settings
                           // Note: This requires additional implementation depending on the platform
@@ -362,6 +365,20 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.statsGrid}>
+          <View style={styles.statCard}>
+            <View
+              style={[styles.statIcon, { backgroundColor: colors.secondary }]}
+            >
+              <MoonStarIcon size={24} color={colors.primary} />
+            </View>
+            <Text style={styles.statLabel}>Sleep</Text>
+            <View style={styles.numUnitWrapper}>
+              <Text style={styles.statValue}>
+                {currentData.sleepHours.toFixed(1)}
+              </Text>
+              <Text style={styles.statUnit}>Hours</Text>
+            </View>
+          </View>
           <View style={styles.statCard}>
             <View
               style={[styles.statIcon, { backgroundColor: "#FFF4E6" }]}

@@ -2,7 +2,7 @@ import colors from '@/constants/colors';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHealthData } from '@/contexts/HealthDataContext';
 import { useRouter } from 'expo-router';
-import { Bluetooth, Edit2, LogOut, Save, X, ChevronDown, Moon, Zap, Footprints, Timer, Fingerprint } from 'lucide-react-native';
+import { Bluetooth, Edit2, LogOut, Save, X, ChevronDown, Moon } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -254,86 +254,33 @@ export default function ProfileScreen() {
                   </View>
                 </View>
 
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Device Status</Text>
-                  <View style={styles.statusGrid}>
-                    <View style={styles.statusCard}>
-                      <View style={[styles.statusIcon, { backgroundColor: currentData?.fingerDetected ? "#E8F8F5" : "#FFF5F5" }]}>
-                        <Fingerprint size={20} color={currentData?.fingerDetected ? colors.success : colors.warning} />
-                      </View>
-                      <Text style={styles.statusLabel}>Finger Detection</Text>
-                      <Text style={[styles.statusValue, { color: currentData?.fingerDetected ? colors.success : colors.warning }]}>
-                        {currentData?.fingerDetected ? "Detected" : "Not Found"}
-                      </Text>
-                    </View>
-
-                    <View style={styles.statusCard}>
-                      <View style={[styles.statusIcon, { backgroundColor: currentData?.sleeping ? "#E8E8FF" : "#F5F5F5" }]}>
-                        <Moon size={20} color={currentData?.sleeping ? colors.secondary : colors.textMuted} />
-                      </View>
-                      <Text style={styles.statusLabel}>Sleep Status</Text>
-                      <Text style={[styles.statusValue, { color: currentData?.sleeping ? colors.secondary : colors.text }]}>
-                        {currentData?.sleeping ? "Sleeping" : "Awake"}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Activity Summary</Text>
-                  <View style={styles.summaryGrid}>
-                    <View style={styles.summaryCard}>
-                      <View style={[styles.summaryIcon, { backgroundColor: "#E8F8FF" }]}>
-                        <Zap size={20} color={colors.primary} />
-                      </View>
-                      <Text style={styles.summaryLabel}>Current Speed</Text>
-                      <Text style={styles.summaryValue}>{(currentData?.activityKmh || 0).toFixed(1)} km/h</Text>
-                    </View>
-
-                    <View style={styles.summaryCard}>
-                      <View style={[styles.summaryIcon, { backgroundColor: "#E8F8F5" }]}>
-                        <Footprints size={20} color={colors.success} />
-                      </View>
-                      <Text style={styles.summaryLabel}>Total Steps</Text>
-                      <Text style={styles.summaryValue}>{(currentData?.steps || 0).toLocaleString()}</Text>
-                    </View>
-
-                    <View style={styles.summaryCard}>
-                      <View style={[styles.summaryIcon, { backgroundColor: "#FFF4E6" }]}>
-                        <Timer size={20} color={colors.warning} />
-                      </View>
-                      <Text style={styles.summaryLabel}>Idle Time</Text>
-                      <Text style={styles.summaryValue}>{Math.floor((currentData?.idleSeconds || 0) / 60)} min</Text>
-                    </View>
-                  </View>
-                </View>
 
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Sleep Summary</Text>
                   <View style={styles.sleepCard}>
-                   <View style={styles.sleepHeader}>
-                     <Moon size={24} color={currentData?.sleeping ? colors.secondary : colors.primary} />
-                     <Text style={styles.sleepTitle}>
-                       {currentData?.sleeping ? "Currently Sleeping" : "Sleep Tracking"}
-                     </Text>
-                   </View>
-                   <View style={styles.sleepStats}>
-                     <View style={styles.sleepStat}>
-                       <Text style={styles.sleepStatValue}>
-                         {currentData?.sleeping ? "😴" : (currentData?.sleepHours || 0).toFixed(1)}
-                       </Text>
-                       <Text style={styles.sleepStatLabel}>
-                         {currentData?.sleeping ? "Status" : "Hours Today"}
-                       </Text>
-                     </View>
-                     <View style={styles.sleepStat}>
-                       <Text style={styles.sleepStatValue}>
-                         {currentData?.sleeping ? "Deep" : "Active"}
-                       </Text>
-                       <Text style={styles.sleepStatLabel}>State</Text>
-                     </View>
-                   </View>
-                 </View>
+                    <View style={styles.sleepHeader}>
+                      <Moon size={24} color={currentData?.sleeping ? colors.secondary : colors.primary} />
+                      <Text style={styles.sleepTitle}>
+                        {currentData?.sleeping ? "Currently Sleeping" : "Sleep Tracking"}
+                      </Text>
+                    </View>
+                    <View style={styles.sleepStats}>
+                      <View style={styles.sleepStat}>
+                        <Text style={styles.sleepStatValue}>
+                          {currentData?.sleeping ? "😴" : (currentData?.sleepHours || 0).toFixed(1)}
+                        </Text>
+                        <Text style={styles.sleepStatLabel}>
+                          {currentData?.sleeping ? "Status" : "Hours Today"}
+                        </Text>
+                      </View>
+                      <View style={styles.sleepStat}>
+                        <Text style={styles.sleepStatValue}>
+                          {currentData?.sleeping ? "Deep" : "Active"}
+                        </Text>
+                        <Text style={styles.sleepStatLabel}>State</Text>
+                      </View>
+                    </View>
+                  </View>
                 </View>
               </>
             )}
