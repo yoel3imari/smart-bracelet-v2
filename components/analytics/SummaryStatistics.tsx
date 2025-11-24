@@ -270,181 +270,17 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Health Score */}
-      <TouchableOpacity
-        style={styles.healthScoreCard}
-        onPress={handleHealthPrediction}
-        disabled={isPredicting}
-      >
-        <View style={styles.healthScoreHeader}>
-          <Text style={styles.healthScoreTitle}>Health Score</Text>
-          <View style={styles.scoreContainer}>
-            <Text style={styles.healthScore}>{healthScore}</Text>
-            <Text style={styles.healthScoreUnit}>/100</Text>
-          </View>
-        </View>
-        <View style={styles.scoreBar}>
-          <View
-            style={[
-              styles.scoreFill,
-              {
-                width: `${healthScore}%`,
-                backgroundColor: healthScore >= 80 ? colors.success :
-                                healthScore >= 60 ? colors.warning : colors.danger
-              }
-            ]}
-          />
-        </View>
-        <Text style={styles.healthScoreDescription}>
-          {healthScore >= 80 ? 'Excellent' :
-           healthScore >= 60 ? 'Good' :
-           'Needs Improvement'}
-        </Text>
-        <View style={styles.healthPredictionTrigger}>
-          {isPredicting ? (
-            <View style={styles.predictingContainer}>
-              <RefreshCw size={16} color={colors.primary} />
-              <Text style={styles.predictingText}>Analyzing health...</Text>
-            </View>
-          ) : (
-            <View style={styles.predictContainer}>
-              <Text style={styles.predictText}>Tap for health prediction</Text>
-              <TrendingUp size={16} color={colors.primary} />
-            </View>
-          )}
-        </View>
-      </TouchableOpacity>
-
-      {/* Health Prediction Results */}
-      {healthPrediction && (
-        <View style={styles.predictionCard}>
-          <View style={styles.predictionHeader}>
-            <Text style={styles.predictionTitle}>Health Prediction</Text>
-            <TouchableOpacity onPress={() => setHealthPrediction(null)}>
-              <Text style={styles.closeButton}>✕</Text>
-            </TouchableOpacity>
-          </View>
-          
-          {/* Overall Health Assessment */}
-          <View style={styles.predictionSection}>
-            <Text style={styles.predictionSectionTitle}>Overall Assessment</Text>
-            <View style={styles.assessmentRow}>
-              <View style={styles.assessmentItem}>
-                <Text style={styles.assessmentLabel}>Health Score</Text>
-                <Text style={[
-                  styles.assessmentValue,
-                  { color: healthPrediction.overall_health_score >= 80 ? colors.success :
-                           healthPrediction.overall_health_score >= 60 ? colors.warning : colors.danger }
-                ]}>
-                  {healthPrediction.overall_health_score}/100
-                </Text>
-              </View>
-              <View style={styles.assessmentItem}>
-                <Text style={styles.assessmentLabel}>Risk Level</Text>
-                <View style={[
-                  styles.riskBadge,
-                  { backgroundColor: formatRiskLevel(healthPrediction.health_risk_level).color + '20' }
-                ]}>
-                  <Text style={[
-                    styles.riskText,
-                    { color: formatRiskLevel(healthPrediction.health_risk_level).color }
-                  ]}>
-                    {formatRiskLevel(healthPrediction.health_risk_level).text}
-                  </Text>
-                </View>
-              </View>
-            </View>
-            <View style={styles.predictionResult}>
-              <Text style={styles.predictionResultLabel}>Confidence:</Text>
-              <Text style={styles.confidenceText}>
-                {Math.round(healthPrediction.confidence_score * 100)}%
-              </Text>
-            </View>
-          </View>
-
-          {/* Metric Averages */}
-          {healthPrediction.metric_averages && healthPrediction.metric_averages.length > 0 && (
-            <View style={styles.predictionSection}>
-              <Text style={styles.predictionSectionTitle}>Metric Analysis</Text>
-              {healthPrediction.metric_averages.map((metric, index) => (
-                <View key={index} style={styles.metricAnalysisItem}>
-                  <View style={styles.metricAnalysisHeader}>
-                    <Text style={styles.metricName}>{metric.metric_type}</Text>
-                    <View style={[
-                      styles.statusBadge,
-                      { backgroundColor: formatMetricStatus(metric.is_healthy).color + '20' }
-                    ]}>
-                      <Text style={[
-                        styles.statusText,
-                        { color: formatMetricStatus(metric.is_healthy).color }
-                      ]}>
-                        {formatMetricStatus(metric.is_healthy).text}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.metricDetails}>
-                    <Text style={styles.metricValue}>
-                      {metric.average_value?.toFixed(1) || 'N/A'} {metric.unit}
-                    </Text>
-                    <Text style={styles.metricScore}>
-                      Score: {metric.health_score}/100
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {/* Risk Factors */}
-          {healthPrediction.risk_factors && healthPrediction.risk_factors.length > 0 && (
-            <View style={styles.predictionSection}>
-              <Text style={styles.predictionSectionTitle}>Risk Factors</Text>
-              {healthPrediction.risk_factors.map((factor, index) => (
-                <View key={index} style={styles.riskFactorItem}>
-                  <AlertTriangle size={16} color={colors.warning} />
-                  <Text style={styles.riskFactorText}>{factor}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {/* Recommendations */}
-          {healthPrediction.recommendations && healthPrediction.recommendations.length > 0 && (
-            <View style={styles.predictionSection}>
-              <Text style={styles.predictionSectionTitle}>Recommendations</Text>
-              {healthPrediction.recommendations.map((recommendation, index) => (
-                <View key={index} style={styles.recommendationItem}>
-                  <Text style={styles.recommendationBullet}>•</Text>
-                  <Text style={styles.recommendationText}>{recommendation}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {/* Prediction Footer */}
-          <View style={styles.predictionFooter}>
-            <Text style={styles.predictionHorizon}>
-              Prediction for next {healthPrediction.prediction_horizon_hours} hours
-            </Text>
-            <Text style={styles.modelVersion}>
-              Model: {healthPrediction.model_version}
-            </Text>
-          </View>
-        </View>
-      )}
-
-      {/* Prediction Error */}
-      {predictionError && (
-        <View style={styles.errorCard}>
-          <AlertTriangle size={20} color={colors.danger} />
-          <Text style={styles.errorCardText}>{predictionError}</Text>
-          <TouchableOpacity onPress={() => setPredictionError(null)}>
-            <Text style={styles.closeButton}>✕</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Key Metrics Summary Cards */}
-      <View style={styles.cardsGrid}>
+      {/* Daily Trends Charts */}
+      <View style={styles.chartsSection}>
+        <Text style={styles.sectionTitle}>Daily Trends</Text>
+        {renderMetricChart(MetricType.HEART_RATE)}
+        {renderMetricChart(MetricType.SPO2)}
+        {renderMetricChart(MetricType.SKIN_TEMPERATURE)}
+        {renderMetricChart(MetricType.STEPS)}
+        {renderMetricChart(MetricType.SLEEP)}
+      </View>
+      
+      {/* <View style={styles.cardsGrid}>
         <SummaryCard
           title="Heart Rate"
           value={Math.round(metrics.heartRate.avg)}
@@ -496,7 +332,6 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
        
       </View>
 
-      {/* Health Status Indicators */}
       <View style={styles.healthStatusSection}>
         <Text style={styles.sectionTitle}>Health Status</Text>
         <HealthStatusIndicator
@@ -534,30 +369,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
           status={getHealthStatus('sleep', metrics.sleep.avgHours)}
           trend={metrics.sleep.quality === 'good' ? 'up' : metrics.sleep.quality === 'poor' ? 'down' : 'stable'}
         />
-      </View>
-
-      {/* Daily Trends Charts */}
-      <View style={styles.chartsSection}>
-        <Text style={styles.sectionTitle}>Daily Trends</Text>
-        {renderMetricChart(MetricType.HEART_RATE)}
-        {renderMetricChart(MetricType.SPO2)}
-        {renderMetricChart(MetricType.SKIN_TEMPERATURE)}
-        {renderMetricChart(MetricType.STEPS)}
-        {renderMetricChart(MetricType.SLEEP)}
-      </View>
-
-      {/* Recommendations */}
-      {recommendations.length > 0 && (
-        <View style={styles.recommendationsSection}>
-          <Text style={styles.sectionTitle}>Recommendations</Text>
-          {recommendations.map((recommendation, index) => (
-            <View key={index} style={styles.recommendationItem}>
-              <Text style={styles.recommendationBullet}>•</Text>
-              <Text style={styles.recommendationText}>{recommendation}</Text>
-            </View>
-          ))}
-        </View>
-      )}
+      </View> */}
     </ScrollView>
   );
 };

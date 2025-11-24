@@ -433,9 +433,9 @@ function useBLE() {
             return;
         }
         if (characteristic?.value) {
-            console.log("Raw data received:", characteristic.value);
+            //console.log("Raw data received:", characteristic.value);
             const rawData = base64.decode(characteristic.value);
-            console.log("Raw data decoded:", rawData);
+            //console.log("Raw data decoded:", rawData);
 
             try {
                 // Parse JSON data from ESP32 with new format
@@ -443,14 +443,14 @@ function useBLE() {
 
                 // Log sensor data with timestamps
                 const timestamp = new Date().toISOString();
-                console.log(`[${timestamp}] Sensor Data:`, {
-                    heartRate: parsedData.heartRate,
-                    spo2: parsedData.spo2,
-                    temperature: parsedData.temperature,
-                    sleepHours: parsedData.sleepHours,
-                    steps: parsedData.steps,
-                    timestamp: parsedData.timestamp
-                });
+                // console.log(`[${timestamp}] Sensor Data:`, {
+                //     heartRate: parsedData.heartRate,
+                //     spo2: parsedData.spo2,
+                //     temperature: parsedData.temperature,
+                //     sleepHours: parsedData.sleepHours,
+                //     steps: parsedData.steps,
+                //     timestamp: parsedData.timestamp
+                // });
 
                 // Update state with parsed data (new format)
                 setSensorData({

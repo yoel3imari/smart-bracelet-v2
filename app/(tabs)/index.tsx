@@ -315,6 +315,8 @@ export default function HomeScreen() {
           </View>
         </View>
 
+
+        {/* Health prediction widget */}
         <View style={styles.anomalySection}>
           <View style={styles.anomalyHeader}>
             <Text style={styles.anomalyTitle}>Health Status</Text>

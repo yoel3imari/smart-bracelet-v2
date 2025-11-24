@@ -235,33 +235,6 @@ export default function AnalyticsScreen() {
           />
         )}
 
-        {/* Step Count Chart */}
-        {chartData.steps && (
-          <BarChart
-            data={[chartData.steps]}
-            config={chartConfig}
-            timePeriod={timeFilter}
-            onDataPointPress={handleDataPointPress}
-            barWidth={20}
-            barSpacing={8}
-            showValues={true}
-          />
-        )}
-
-        {/* Sleep Hours Chart */}
-        {chartData.sleepHours && (
-          <BarChart
-            data={[chartData.sleepHours]}
-            config={chartConfig}
-            referenceLines={getReferenceLinesForMetric('sleepHours')}
-            timePeriod={timeFilter}
-            onDataPointPress={handleDataPointPress}
-            barWidth={20}
-            barSpacing={8}
-            showValues={true}
-          />
-        )}
-
         {/* Temperature Chart */}
         {chartData.temperature && (
           <InteractiveLineChart
