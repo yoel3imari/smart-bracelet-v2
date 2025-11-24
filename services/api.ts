@@ -112,10 +112,10 @@ export class ApiService {
     const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
 
     try {
-      //console.log(options.method + " => " + url);
-      // if (options.body) {
-      //   console.log("Body: ", options.body);
-      // }
+      console.log(options.method + " => " + url);
+      if (options.body) {
+        console.log("Body: ", options.body);
+      }
       
       const response = await fetch(url, {
         ...options,
