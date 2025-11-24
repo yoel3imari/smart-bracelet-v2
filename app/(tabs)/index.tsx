@@ -46,6 +46,8 @@ export default function HomeScreen() {
     connectToDevice,
     disconnectFromDevice,
     connectedDevice,
+    healthPrediction,
+    isLoadingPrediction,
   } = useHealthData();
 
   const {
@@ -323,19 +325,51 @@ export default function HomeScreen() {
             <TouchableOpacity
               onPress={refreshData}
               style={styles.refreshButton}
+              disabled={isLoadingPrediction}
             >
-              <RefreshCw size={20} color={colors.primary} />
+              <RefreshCw
+                size={20}
+                color={isLoadingPrediction ? colors.textMuted : colors.primary}
+              />
             </TouchableOpacity>
           </View>
-          <Text
-            style={
-              isConnected ? styles.anomalyText : styles.anomalyTextUnavailable
-            }
-          >
-            {isConnected
-              ? "All vitals within normal range"
-              : "Data unavailable: connect device"}
-          </Text>
+          
+          {isLoadingPrediction ? (
+            <Text style={styles.anomalyTextLoading}>
+              Analyzing health data...
+            </Text>
+          ) : healthPrediction ? (
+            <View>
+              <View style={styles.healthRiskRow}>
+                <Text style={[
+                  styles.healthRiskLevel,
+                  healthPrediction.health_risk_level === 'low' && styles.healthRiskLow,
+                  healthPrediction.health_risk_level === 'medium' && styles.healthRiskMedium,
+                  healthPrediction.health_risk_level === 'high' && styles.healthRiskHigh,
+                ]}>
+                  {healthPrediction.health_risk_level.toUpperCase()} RISK
+                </Text>
+                <Text style={styles.confidenceScore}>
+                  {Math.round(healthPrediction.confidence_score * 100)}% confidence
+                </Text>
+              </View>
+              {healthPrediction.recommendations.length > 0 && (
+                <Text style={styles.recommendationText}>
+                  {healthPrediction.recommendations[0]}
+                </Text>
+              )}
+            </View>
+          ) : (
+            <Text
+              style={
+                isConnected ? styles.anomalyText : styles.anomalyTextUnavailable
+              }
+            >
+              {isConnected
+                ? "All vitals within normal range"
+                : "Data unavailable: connect device"}
+            </Text>
+          )}
         </View>
 
         <View style={styles.heartSection}>
@@ -572,6 +606,48 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.secondary,
     fontWeight: "500" as const,
+  },
+  anomalyTextLoading: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: "500" as const,
+  },
+  healthRiskRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  healthRiskLevel: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  healthRiskLow: {
+    backgroundColor: colors.success + '20',
+    color: colors.success,
+  },
+  healthRiskMedium: {
+    backgroundColor: colors.warning + '20',
+    color: colors.warning,
+  },
+  healthRiskHigh: {
+    backgroundColor: colors.danger + '20',
+    color: colors.danger,
+  },
+  confidenceScore: {
+    fontSize: 12,
+    color: colors.textMuted,
+    fontWeight: '500' as const,
+  },
+  recommendationText: {
+    fontSize: 12,
+    color: colors.text,
+    fontWeight: '400' as const,
+    lineHeight: 16,
   },
   heartSection: {
     alignItems: "center",

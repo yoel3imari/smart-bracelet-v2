@@ -81,7 +81,7 @@ export interface MetricsStatistics {
 export interface HealthPredictionResponse {
   user_id: string;
   prediction_timestamp: string;
-  overall_health_score: number;
+  prediction_result: number;
   health_risk_level: 'low' | 'medium' | 'high';
   confidence_score: number;
   metric_averages: Array<{
@@ -311,6 +311,8 @@ export class MetricService {
       const endpoint = queryString ? `/api/v1/metrics/summary?${queryString}` : '/api/v1/metrics/summary';
       
       const response = await apiService.get<MetricSummary>(endpoint);
+      console.log("Metrics summary: ", response);
+      
       return response;
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {

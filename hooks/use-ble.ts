@@ -382,11 +382,11 @@ function useBLE() {
     };
 
     const stopScan = () => {
-        if (isScanning) {
-            bleManager.stopDeviceScan();
-            setIsScanning(false);
-            console.log("BLE scan stopped");
-        }
+        // if (isScanning) {
+        // }
+        bleManager.stopDeviceScan();
+        setIsScanning(false);
+        console.log("BLE scan stopped");
     };
 
     const disconnectFromDevice = async () => {

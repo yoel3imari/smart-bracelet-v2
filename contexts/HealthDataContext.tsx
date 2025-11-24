@@ -23,6 +23,7 @@ export interface HistoricalData {
   sleepHours: number;
 }
 
+
 export interface UserProfile {
   name: string;
   age: number;
@@ -47,6 +48,8 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
   });
 
   const [historicalData, setHistoricalData] = useState<HistoricalData[]>([]);
+  const [healthPrediction, setHealthPrediction] = useState<any | null>(null);
+  const [isLoadingPrediction, setIsLoadingPrediction] = useState<boolean>(false);
   const [userProfile, setUserProfile] = useState<UserProfile>({
     name: 'Sarah Johnson',
     age: 32,
@@ -218,25 +221,35 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
   }, []);
 
   const refreshData = useCallback(async () => {
-    console.log('Refreshing health data...');
+    console.log('Refreshing health data and fetching health prediction...');
     
     try {
-      // In a real implementation, this would trigger a manual read from the device
-      // For now, we'll just update the timestamp and simulate data refresh
-      
-      // Simulate fetching latest metrics from backend
-      // const latestMetrics = await metricService.getLatestMetrics(1);
-      
+      // Update the timestamp
       setCurrentData(prev => ({
         ...prev,
         lastUpdated: new Date(),
       }));
 
+      // Fetch health prediction if authenticated
+      if (isAuthenticated) {
+        setIsLoadingPrediction(true);
+        try {
+          const prediction = await metricService.getHealthPrediction();
+          setHealthPrediction(prediction);
+          console.log('Health prediction fetched successfully:', prediction);
+        } catch (predictionError) {
+          console.error('Failed to fetch health prediction:', predictionError);
+          // Don't throw error here - prediction failure shouldn't block refresh
+        } finally {
+          setIsLoadingPrediction(false);
+        }
+      }
+
       console.log('Health data refreshed successfully');
     } catch (error) {
       console.error('Failed to refresh health data:', error);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   const updateUserProfile = useCallback((updates: Partial<UserProfile>) => {
     setUserProfile((prev) => ({ ...prev, ...updates }));
@@ -261,6 +274,8 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
       hasAlerts,
       currentData,
       historicalData,
+      healthPrediction,
+      isLoadingPrediction,
       userProfile,
       toggleConnection,
       isConnected,
@@ -274,6 +289,8 @@ export const [HealthDataProvider, useHealthData] = createContextHook(() => {
       hasAlerts,
       currentData,
       historicalData,
+      healthPrediction,
+      isLoadingPrediction,
       userProfile,
       toggleConnection,
       isConnected,

@@ -113,9 +113,9 @@ export class ApiService {
 
     try {
       //console.log(options.method + " => " + url);
-      if (options.body) {
-        console.log("Body: ", options.body);
-      }
+      // if (options.body) {
+      //   console.log("Body: ", options.body);
+      // }
       
       const response = await fetch(url, {
         ...options,

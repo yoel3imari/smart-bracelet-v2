@@ -92,9 +92,9 @@ export const DeviceModal: FC<DeviceModalProps> = (props) => {
   );
 
   const handleStopScanAndClose = () => {
-    if (isScanning) {
-      stopScan();
-    }
+    // if (isScanning) {
+    // }
+    stopScan();
     closeModal();
   };
 
